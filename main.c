@@ -515,7 +515,7 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 	}
 
 	hd.bs = PBAP_PCE_UUID;
-	if (OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TARGET,	hd,
+	if (OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TARGET, hd,
 			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
 		printf("Error adding header");
 		OBEX_ObjectDelete(obex, obj);
@@ -558,10 +558,14 @@ int main(int argc, char *argv[])
 	main_loop = g_main_loop_new(NULL, FALSE);
 
 	if (argc < 2){
-		printf("bt address not defined\n");
-		exit(0);
+		fprintf(stderr, "Bluetooth Address missing\n");
+		exit(EXIT_FAILURE);
 	}
 
+	if (bachk(argv[1]) < 0) {
+		fprintf(stderr, "Invalid Bluetooth Address");
+		exit(EXIT_FAILURE);
+	}
 	str2ba(argv[1], &context.bdaddr);
 
 	if (argc >= 3)
