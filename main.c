@@ -41,8 +41,8 @@
 #define PBAP_PCE_CHANNEL 0x10
 #define PBAP_PCE_UUID ((const uint8_t []) \
 { 0x79, 0x61, 0x35, 0xf0, \
-  0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
-  0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
+		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
+		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
 
 #define PCE_PULL_FUNC_ID 0x01
 #define PCE_LIST_FUNC_ID 0x02
@@ -72,39 +72,40 @@ static obex_object_t *obex_obj_init(obex_t *obex, const char *name, const char *
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
-	uint8_t u_name[200];
-	int u_name_len;
+	uint8_t uname[200];
+	int uname_len;
 
-	if(! (obj = OBEX_ObjectNew(obex, OBEX_CMD_GET)))
-        return NULL;
+	obj = OBEX_ObjectNew(obex, OBEX_CMD_GET);
+	if (!obj)
+		return NULL;
 
 	hd.bq4 = context.connection_id;
 	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
-	u_name_len = OBEX_CharToUnicode(u_name, (uint8_t *) name, sizeof(u_name));
-	hd.bs = u_name;
+	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+	hd.bs = uname;
 
 	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_NAME,
-               hd, u_name_len, OBEX_FL_FIT_ONE_PACKET);
+			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	hd.bs = (uint8_t *) type;
 	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TYPE,
-               hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
+			hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
 
 	return obj;
 }
 
 static int pull_vcard_list(obex_t *obex, uint8_t order, uint8_t sa,
-	   uint16_t maxlist, uint16_t offset)
+		uint16_t maxlist, uint16_t offset)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	char name[200];
 	char search[180];
-	uint8_t u_search[180];
+	uint8_t usearch[180];
 	uint8_t *app;
-	int u_search_len, app_len;
+	int usearch_len, app_len;
 
 	if (context.format != PBAP_VCARD_FORMAT_21 &&
 			context.format != PBAP_VCARD_FORMAT_30) {
@@ -115,17 +116,17 @@ static int pull_vcard_list(obex_t *obex, uint8_t order, uint8_t sa,
 	printf("Insert folder name\n>> ");
 	scanf("%s", name);
 	obj = obex_obj_init(obex, name, XOBEX_BT_VCARDLIST);
-	if(!obj) {
+	if (!obj) {
 		printf("Error Creating Object (Pull VCard List)\n");
 		return -1;
 	}
 
 	printf("Insert search value\n>> ");
 	scanf("%s", search);
-	u_search_len = OBEX_CharToUnicode(u_search, (uint8_t *) search,
-			sizeof(u_search));
+	usearch_len = OBEX_CharToUnicode(usearch, (uint8_t *) search,
+			sizeof(usearch));
 
-	app_len = 16 + u_search_len;
+	app_len = 16 + usearch_len;
 	app = g_malloc0(app_len);
 
 	app[0]	= PBAP_APP_ORDER_ID;
@@ -137,14 +138,14 @@ static int pull_vcard_list(obex_t *obex, uint8_t order, uint8_t sa,
 	app[10]	= PBAP_APP_LISTOFFSET_ID;
 	app[11]	= PBAP_APP_LISTOFFSET_SIZE;
 	app[14]	= PBAP_APP_SEARCH_VAL_ID;
-	app[15]	= u_search_len;
+	app[15]	= usearch_len;
 
 	app[2] = order;
 	app[5] = sa;
 	bt_put_unaligned(htons(maxlist), (uint16_t *) &app[8]);
 	bt_put_unaligned(htons(offset), (uint16_t *) &app[12]);
 
-	memcpy(&app[16], u_search, u_search_len);
+	memcpy(&app[16], usearch, usearch_len);
 
 	hd.bs = app;
 	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_APPARAM, hd, app_len, 0);
@@ -161,8 +162,8 @@ static int pull_vcard_list(obex_t *obex, uint8_t order, uint8_t sa,
 static int pull_phonebook(obex_t *obex, uint64_t filter,
 		uint16_t maxlist, uint16_t offset)
 {
-    obex_object_t *obj;
-    obex_headerdata_t hd;
+	obex_object_t *obj;
+	obex_headerdata_t hd;
 	char name[200];
 	uint8_t app[21];
 
@@ -175,7 +176,7 @@ static int pull_phonebook(obex_t *obex, uint64_t filter,
 	printf("Insert Phonebook name\n>> ");
 	scanf("%s.vcf", name);
 	obj = obex_obj_init(obex, name, XOBEX_BT_PHONEBOOK);
-	if(!obj) {
+	if (!obj) {
 		printf("Error Creating Object (Pull PhoneBook)\n");
 		return -1;
 	}
@@ -220,7 +221,7 @@ static int pull_vcard_entry(obex_t *obex, uint64_t filter)
 	printf("Insert contact name\n>> ");
 	scanf("%s.vcf", name);
 	obj = obex_obj_init(obex, name, XOBEX_BT_VCARD);
-	if(!obj) {
+	if (!obj) {
 		printf("Error Creating Object (Pull VCard Entry)\n");
 		return -1;
 	}
@@ -363,24 +364,24 @@ static void connect_done(obex_t *obex, obex_object_t *obj, int rsp)
 	uint8_t hi;
 	unsigned int hlen;
 
-	if(rsp == OBEX_RSP_SUCCESS) {
-		printf("Connect OK!\n");
-
-		while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
-			if (hi == OBEX_HDR_CONNECTION){
-				context.connection_id = hd.bq4;
-				break;
-			}
-		}
-	}
-	else {
+	if (rsp != OBEX_RSP_SUCCESS) {
 		printf("Connect failed 0x%02x!\n", rsp);
+		return;
+	}
+
+	printf("Connect OK!\n");
+
+	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
+		if (hi == OBEX_HDR_CONNECTION){
+			context.connection_id = hd.bq4;
+			break;
+		}
 	}
 }
 
 static void get_done(obex_t *obex, obex_object_t *obj, int rsp)
 {
-	if(rsp != OBEX_RSP_SUCCESS) {
+	if (rsp != OBEX_RSP_SUCCESS) {
 		printf("Get failed 0x%02x!\n", rsp);
 		return;
 	}
@@ -402,7 +403,7 @@ static void get_done(obex_t *obex, obex_object_t *obj, int rsp)
 
 static void setpath_done(obex_t *obex, obex_object_t *obj, int rsp)
 {
-	if(rsp == OBEX_RSP_SUCCESS)
+	if (rsp == OBEX_RSP_SUCCESS)
 		printf("Set path OK!\n");
 	else
 		printf("Set path failed 0x%02x!\n", rsp);
@@ -430,7 +431,7 @@ static void pce_req_done(obex_t *obex, obex_object_t *obj, int cmd, int rsp)
 }
 
 static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
-	   	int evt, int cmd, int rsp)
+		int evt, int cmd, int rsp)
 {
 //	print_event("PCE", evt, cmd, rsp);
 	switch (evt) {
@@ -496,12 +497,13 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 		goto fail;
 	}
 
-	if(! (obex = OBEX_Init(OBEX_TRANS_BLUETOOTH, obex_pce_event, 0))){
+	obex = OBEX_Init(OBEX_TRANS_BLUETOOTH, obex_pce_event, 0);
+	if (!obex) {
 		printf("OBEX_Init failed");
 		goto fail;
 	}
 
-	if(BtOBEX_TransportConnect(obex, BDADDR_ANY, bdaddr, channel) < 0) {
+	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, bdaddr, channel) < 0) {
 		printf("Transport connect error!");
 		goto fail;
 	}
@@ -513,7 +515,7 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 	}
 
 	hd.bs = PBAP_PCE_UUID;
-	if(OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TARGET,	hd,
+	if (OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TARGET,	hd,
 			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
 		printf("Error adding header");
 		OBEX_ObjectDelete(obex, obj);
@@ -533,7 +535,7 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 	return obex;
 
 fail:
-	if(obex)
+	if (obex)
 		OBEX_Cleanup(obex);
 	printf("ERROR: Creating connection\n");
 	return NULL;
@@ -547,7 +549,7 @@ int main(int argc, char *argv[])
 	sa.sa_flags = SA_NOCLDSTOP;
 	sa.sa_handler = sig_term;
 	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGINT,  &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGCHLD, &sa, NULL);
