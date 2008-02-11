@@ -190,7 +190,7 @@ static int pull_phonebook(obex_t *obex, uint64_t filter,
 	app[17]	= PBAP_APP_LISTOFFSET_ID;
 	app[18]	= PBAP_APP_LISTOFFSET_SIZE;
 
-	app[2] = (uint64_t) filter;
+	memcpy(&app[2], &filter, sizeof(filter));
 	app[12] = context.format;
 	bt_put_unaligned(htons(maxlist), (uint16_t *) &app[15]);
 	bt_put_unaligned(htons(offset), (uint16_t *) &app[19]);
@@ -231,7 +231,7 @@ static int pull_vcard_entry(obex_t *obex, uint64_t filter)
 	app[10]	= PBAP_APP_FORMAT_ID;
 	app[11]	= PBAP_APP_FORMAT_SIZE;
 
-	app[2]	= (uint64_t) filter;
+	memcpy(&app[2], &filter, sizeof(filter));
 	app[12]	= context.format;
 
 	hd.bs = app;
