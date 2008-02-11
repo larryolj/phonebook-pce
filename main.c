@@ -12,41 +12,41 @@
 #include <openobex/obex.h>
 #include <arpa/inet.h>
 
-#define XOBEX_BT_PHONEBOOK "x-bt/phonebook"
-#define XOBEX_BT_VCARD "x-bt/vcard"
-#define XOBEX_BT_VCARDLIST "x-bt/vcard-listing"
+#define XOBEX_BT_PHONEBOOK	"x-bt/phonebook"
+#define XOBEX_BT_VCARD		"x-bt/vcard"
+#define XOBEX_BT_VCARDLIST	"x-bt/vcard-listing"
 
-#define PBAP_APP_ORDER_ID 0x01
-#define PBAP_APP_SEARCH_VAL_ID 0x02
-#define PBAP_APP_SEARCH_ATT_ID 0x03
-#define PBAP_APP_MAXLIST_ID 0x04
-#define PBAP_APP_LISTOFFSET_ID 0x05
-#define PBAP_APP_FILTER_ID 0x06
-#define PBAP_APP_FORMAT_ID 0x07
-#define PBAP_APP_PBSIZE_ID 0x08
-#define PBAP_APP_MISS_CALL_ID 0x09
+#define PBAP_APP_ORDER_ID		0x01
+#define PBAP_APP_SEARCH_VAL_ID		0x02
+#define PBAP_APP_SEARCH_ATT_ID		0x03
+#define PBAP_APP_MAXLIST_ID		0x04
+#define PBAP_APP_LISTOFFSET_ID		0x05
+#define PBAP_APP_FILTER_ID		0x06
+#define PBAP_APP_FORMAT_ID		0x07
+#define PBAP_APP_PBSIZE_ID		0x08
+#define PBAP_APP_MISS_CALL_ID		0x09
 
-#define PBAP_APP_ORDER_SIZE 0x01
-#define PBAP_APP_SEARCH_ATT_SIZE 0x01
-#define PBAP_APP_MAXLIST_SIZE 0x02
-#define PBAP_APP_LISTOFFSET_SIZE 0x02
-#define PBAP_APP_FILTER_SIZE 0x08
-#define PBAP_APP_FORMAT_SIZE 0x01
-#define PBAP_APP_PBSIZE_SIZE 0x02
-#define PBAP_APP_MISS_CALL_SIZE 0x01
+#define PBAP_APP_ORDER_SIZE		0x01
+#define PBAP_APP_SEARCH_ATT_SIZE	0x01
+#define PBAP_APP_MAXLIST_SIZE		0x02
+#define PBAP_APP_LISTOFFSET_SIZE	0x02
+#define PBAP_APP_FILTER_SIZE		0x08
+#define PBAP_APP_FORMAT_SIZE		0x01
+#define PBAP_APP_PBSIZE_SIZE		0x02
+#define PBAP_APP_MISS_CALL_SIZE		0x01
 
-#define PBAP_VCARD_FORMAT_21 0x00
-#define PBAP_VCARD_FORMAT_30 0x01
+#define PBAP_VCARD_FORMAT_21		0x00
+#define PBAP_VCARD_FORMAT_30		0x01
 
-#define PBAP_PCE_CHANNEL 0x10
+#define PBAP_PCE_CHANNEL		0x10
 #define PBAP_PCE_UUID ((const uint8_t []) \
 { 0x79, 0x61, 0x35, 0xf0, \
 		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
 		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
 
-#define PCE_PULL_FUNC_ID 0x01
-#define PCE_LIST_FUNC_ID 0x02
-#define PCE_FIND_FUNC_ID 0x03
+#define PCE_PULL_FUNC_ID	0x01
+#define PCE_LIST_FUNC_ID 	0x02
+#define PCE_FIND_FUNC_ID	0x03
 
 struct client_context
 {
@@ -292,7 +292,7 @@ init:
 			context.obex = client_connect(&context.bdaddr, context.channel);
 			break;
 		}
-		printf("Alread connected\n");
+		printf("Already connected\n");
 		goto init;
 		break;
 	case 'q':
