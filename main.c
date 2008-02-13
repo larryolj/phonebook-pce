@@ -113,6 +113,48 @@ static obex_object_t *obex_obj_init(obex_t *obex, const char *name, const char *
 	return obj;
 }
 
+static int set_phonebook(obex_t *obex)
+{
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+	char name[100];
+	uint8_t uname[200];
+	uint8_t nohdr_data[2] = { 0x02, 0x00};
+	int uname_len = 0;
+
+
+	obj = OBEX_ObjectNew(obex, OBEX_CMD_SETPATH);
+	if (!obj) {
+		printf("Error Creating Object (Set Phonebook)\n");
+		return -1;
+	}
+
+	memset(&hd, 0, sizeof(hd));
+	hd.bq4 = context.connection_id;
+	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_CONNECTION, hd,
+			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
+
+	printf("Insert folder name, '..' for parent or '\\' for root\n>> ");
+	scanf("%s", name);
+
+	if (strcmp(name, "..") == 0) {
+		/* parent folder */
+		nohdr_data[0] |= 1;
+	} else if (strcmp(name, "/") != 0) {
+		uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+		hd.bs = uname;
+	}
+
+	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_NAME,
+			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
+
+	OBEX_ObjectSetNonHdrData(obj, nohdr_data, 2);
+
+	OBEX_Request(obex, obj);
+
+	return 0;
+}
+
 static int pull_vcard_list(obex_t *obex, uint8_t order, uint8_t sa,
 		uint16_t maxlist, uint16_t offset)
 {
@@ -278,34 +320,34 @@ init:
 	scanf("%s", cmd);
 	switch (cmd[0] | 0x20) {
 	case 'p':
-		if (context.connection_id){
+		if (context.connection_id) {
 			pull_phonebook(obex, 0xffffffff, 0xffff, 0xff00);
 			break;
 		}
 	case 'l':
-		if (context.connection_id){
+		if (context.connection_id) {
 			pull_vcard_list(obex, 0, 0, 0xffff, 0);
 			break;
 		}
 	case 'e':
-		if (context.connection_id){
+		if (context.connection_id) {
 			pull_vcard_entry(obex, 0);
 			break;
 		}
 	case 'd':
-		if (context.connection_id){
+		if (context.connection_id) {
 			client_disconnect(obex);
 			break;
 		}
 	case 's':
-		if (context.connection_id){
-			printf("Not Implemented\n");
-			goto init;
+		if (context.connection_id) {
+			set_phonebook(obex);
+			break;
 		}
 		printf("Not Connected\n");
 		goto init;
 	case 'c':
-		if (!context.connection_id){
+		if (!context.connection_id) {
 			context.obex = client_connect(&context.bdaddr, context.channel);
 			break;
 		}
@@ -328,7 +370,7 @@ static void pull_vcard_list_done(obex_t *obex, obex_object_t *obj)
 	unsigned int hlen;
 	char *buf;
 
-	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
+	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)) {
 		if (hi == OBEX_HDR_BODY) {
 			buf = g_malloc0(hlen +1);
 			strncpy(buf, (char *) hd.bs, hlen);
@@ -346,7 +388,7 @@ static void pull_vcard_entry_done(obex_t *obex, obex_object_t *obj)
 	unsigned int hlen;
 	char *buf;
 
-	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
+	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)) {
 		if (hi == OBEX_HDR_BODY) {
 			buf = g_malloc0(hlen +1);
 			strncpy(buf, (char *) hd.bs, hlen);
@@ -364,7 +406,7 @@ static void pull_phonebook_done(obex_t *obex, obex_object_t *obj)
 	unsigned int hlen;
 	char *buf;
 
-	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
+	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)) {
 		if (hi == OBEX_HDR_BODY) {
 			buf = g_malloc0(hlen +1);
 			strncpy(buf, (char *) hd.bs, hlen);
@@ -388,8 +430,8 @@ static void connect_done(obex_t *obex, obex_object_t *obj, int rsp)
 
 	printf("Connect OK!\n");
 
-	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)){
-		if (hi == OBEX_HDR_CONNECTION){
+	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)) {
+		if (hi == OBEX_HDR_CONNECTION) {
 			context.connection_id = hd.bq4;
 			break;
 		}
@@ -476,7 +518,7 @@ static void client_disconnect(obex_t *obex)
 	obex_object_t *obj;
 
 	obj= OBEX_ObjectNew(obex, OBEX_CMD_DISCONNECT);
-		if (!obj){
+		if (!obj) {
 		printf("Error creating object\n");
 		return;
 	}
@@ -509,7 +551,7 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 	GIOChannel *io;
 	int fd;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0){
+	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
 		printf("ERROR: Device bt address error!\n");
 		goto fail;
 	}
@@ -526,7 +568,7 @@ static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel)
 	}
 
 	obj = OBEX_ObjectNew(obex, OBEX_CMD_CONNECT);
-	if (!obj){
+	if (!obj) {
 		printf("Error creating object");
 		goto fail;
 	}
@@ -574,7 +616,7 @@ int main(int argc, char *argv[])
 
 	main_loop = g_main_loop_new(NULL, FALSE);
 
-	if (argc < 2){
+	if (argc < 2) {
 		fprintf(stderr, "Bluetooth Address missing\n");
 		exit(EXIT_FAILURE);
 	}
