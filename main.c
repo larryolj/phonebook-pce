@@ -311,6 +311,7 @@ static void get_user_cmd(obex_t *obex)
 			"'l' - Pull VCard List\n"\
 			"'e' - Pull VCard Entry\n"\
 			"'s' - Set Phonebook\n"\
+			"'n' - Phonebook Size\n"\
 			"'c' - Connect\n"\
 			"'d' - Disconnect\n"\
 			"'q' - Quit\n"\
@@ -337,6 +338,11 @@ init:
 	case 'd':
 		if (context.connection_id) {
 			client_disconnect(obex);
+			break;
+		}
+	case 'n':
+		if (context.connection_id) {
+			pull_phonebook(obex, 0xffffffff, 0x0, 0x0);
 			break;
 		}
 	case 's':
@@ -402,19 +408,35 @@ static void pull_vcard_entry_done(obex_t *obex, obex_object_t *obj)
 static void pull_phonebook_done(obex_t *obex, obex_object_t *obj)
 {
 	obex_headerdata_t hd;
-	uint8_t hi;
+	uint32_t app_len;
+	uint8_t hi, *app = NULL;
 	unsigned int hlen;
-	char *buf;
+	char *buf = NULL;
 
 	while (OBEX_ObjectGetNextHeader(obex, obj, &hi, &hd, &hlen)) {
-		if (hi == OBEX_HDR_BODY) {
+		switch(hi) {
+		case OBEX_HDR_BODY:
 			buf = g_malloc0(hlen +1);
 			strncpy(buf, (char *) hd.bs, hlen);
-
-			printf("PULL PB DATA\n %s\n", buf);
-			g_free(buf);
+			break;
+		case OBEX_HDR_APPARAM:
+			app = g_malloc0(hlen);
+			memcpy(app, hd.bs, hlen);
+			app_len = hlen;
+			break;
 		}
 	}
+
+	if (app && app[0] == 0x08) {
+		uint16_t size;
+
+		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
+		printf("PhoneBook Size %d\n", size);
+	}
+
+	if (buf && strlen(buf) > 0)
+		printf("PULL PB DATA\n %s\n", buf);
+	g_free(buf);
 }
 
 static void connect_done(obex_t *obex, obex_object_t *obj, int rsp)
