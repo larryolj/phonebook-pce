@@ -434,8 +434,18 @@ static void pull_phonebook_done(obex_t *obex, obex_object_t *obj)
 		printf("PhoneBook Size %d\n", size);
 	}
 
-	if (buf && strlen(buf) > 0)
-		printf("PULL PB DATA\n %s\n", buf);
+	printf("PULL PB %d\n", sizeof(buf));
+	if (buf && sizeof(buf) > 0){
+		char *tmp_buf;
+		int ubuf_len;
+
+		ubuf_len = sizeof(buf)/2;
+		tmp_buf = g_malloc0(ubuf_len);
+		OBEX_UnicodeToChar((uint8_t *) tmp_buf, (uint8_t *) buf, ubuf_len);
+
+		printf("PULL PB DATA\n %s\n", tmp_buf);
+		free(tmp_buf);
+	}
 	g_free(buf);
 }
 
