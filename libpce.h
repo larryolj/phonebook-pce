@@ -23,6 +23,8 @@
 typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;
+	int		finished;
+	int		succes;
 } pce_t;
 
 typedef struct {

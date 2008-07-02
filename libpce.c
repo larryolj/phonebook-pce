@@ -34,13 +34,45 @@ static void debug(const char *msg)
 	printf("[PCE] %s", msg);
 }
 
+static int pce_sync(pce_t pce)
+{
+	while(!pce->finished)
+		if (OBEX_HandleInput(pce->obex, 20) <= 0)
+			return -1;
+
+	if (!pce->succes)
+		return -1;
+	return 0;
+}
+
+static int pce_sync_request(pce_t pce, obex_object_t obj)
+{
+	if (!pce->finished)
+		return -EBUSY;
+	pce->finished = 0;
+
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
+	return pce_sync(pce);
+}
+
+
+static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
+		int evt, int cmd, int rsp)
+{
+	pce_t *pce;
+
+	pce = OBEX_GetUserData(obex);
+}
+
 pce_t *PCE_Connect(const char *bdaddr, uint8_t channel)
 {
 	obex_t *obex = NULL;
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	pce_t *pce;
-	int fd;
 
 	/* FIXME convert char to bdaddr */
 	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
@@ -73,16 +105,20 @@ pce_t *PCE_Connect(const char *bdaddr, uint8_t channel)
 		goto fail;
 	}
 
+	/* FIXME glib? */
 	pce = g_new0(pce_t, 1);
 	pce->obex = obex;
 
-	/* FIXME sync request*/
+	if (pce_sync_request(pce, obj) < 0)
+		goto fail;
 
 	return pce;
 
 fail:
 	if (obex)
 		OBEX_Cleanup(obex);
+	if (pce)
+		g_free(pce);
 	debug("ERROR Creating connection\n");
 	return NULL;
 }
@@ -90,8 +126,38 @@ fail:
 
 int PCE_Set_PB(pce_t pce, char *name)
 {
-	/* FIXME */
-	return 0;
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+	uint8_t uname[200];
+	uint8_t nohdr_data[2] = { 0x02, 0x00};
+	int uname_len = 0;
+
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_SETPATH);
+	if (!obj) {
+		debug("Error Creating Object (Set Phonebook)\n");
+		return -1;
+	}
+
+	memset(&hd, 0, sizeof(hd));
+	hd.bq4 = context.connection_id;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
+			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
+
+	/* FIXME: correct check bad string */
+	if (strcmp(name, "..") == 0) {
+		/* parent folder */
+		nohdr_data[0] |= 1;
+	} else if (strcmp(name, "/") != 0) {
+		uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+		hd.bs = uname;
+	}
+
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
+			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
+
+	OBEX_ObjectSetNonHdrData(obj, nohdr_data, 2);
+
+	return pce_sync_request(pce, obj);
 }
 
 int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
