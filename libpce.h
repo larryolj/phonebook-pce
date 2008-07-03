@@ -23,6 +23,14 @@
 #define PBAP_VCARD_FORMAT_21	0x00
 #define PBAP_VCARD_FORMAT_30	0x01
 
+#define PBAP_ORDER_INDEXED 0x00
+#define PBAP_ORDER_ALPHANUN 0x01
+#define PBAP_ORDER_PHONETIC 0x02
+
+#define PBAP_SEARCHATTR_NAME 0x00
+#define PBAP_SEARCHATTR_NUMBER 0x01
+#define PBAP_SEARCHATTR_SOUND 0x02
+
 typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;

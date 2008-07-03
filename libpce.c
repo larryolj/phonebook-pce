@@ -225,7 +225,7 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
 	app[17]	= PBAP_APP_LISTOFFSET_ID;
 	app[18]	= PBAP_APP_LISTOFFSET_SIZE;
 
-	memcpy(&app[2], query->filter, sizeof(query->filter));
+	memcpy(&app[2], query->filter, PBAP_APP_FILTER_SIZE);
 	app[12] = query->format;
 	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[15]);
@@ -269,6 +269,7 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 
 	app[2] = query->order;
 	app[5] = query->search_attr;
+	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[8]);
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[12]);
 
@@ -284,6 +285,26 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 
 int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, char **buf)
 {
-	/* FIXME */
-	return 0;
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+	uint8_t app[13];
+
+	obj = obex_obj_init(pce->obex, query->name, XOBEX_BT_VCARD);
+	if (!obj) {
+		debug("Error Creating Object (Pull VCard Entry)\n");
+		return -1;
+	}
+
+	app[0]	= PBAP_APP_FILTER_ID;
+	app[1]	= PBAP_APP_FILTER_SIZE;
+	app[10]	= PBAP_APP_FORMAT_ID;
+	app[11]	= PBAP_APP_FORMAT_SIZE;
+
+	memcpy(&app[2], query->filter, PBAP_APP_FILTER_SIZE);
+	app[12]	= query->format;
+
+	hd.bs = app;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
+
+	return pce_sync_request(pce, obj);
 }
