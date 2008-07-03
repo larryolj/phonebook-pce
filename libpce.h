@@ -20,6 +20,9 @@
 
 #include <openobex/obex.h>
 
+#define PBAP_VCARD_FORMAT_21	0x00
+#define PBAP_VCARD_FORMAT_30	0x01
+
 typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;

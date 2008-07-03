@@ -25,6 +25,25 @@
 #define XOBEX_BT_VCARD		"x-bt/vcard"
 #define XOBEX_BT_VCARDLIST	"x-bt/vcard-listing"
 
+#define PBAP_APP_ORDER_ID			0x01
+#define PBAP_APP_SEARCH_VAL_ID		0x02
+#define PBAP_APP_SEARCH_ATT_ID		0x03
+#define PBAP_APP_MAXLIST_ID			0x04
+#define PBAP_APP_LISTOFFSET_ID		0x05
+#define PBAP_APP_FILTER_ID			0x06
+#define PBAP_APP_FORMAT_ID			0x07
+#define PBAP_APP_PBSIZE_ID			0x08
+#define PBAP_APP_MISS_CALL_ID		0x09
+
+#define PBAP_APP_ORDER_SIZE			0x01
+#define PBAP_APP_SEARCH_ATT_SIZE	0x01
+#define PBAP_APP_MAXLIST_SIZE		0x02
+#define PBAP_APP_LISTOFFSET_SIZE	0x02
+#define PBAP_APP_FILTER_SIZE		0x08
+#define PBAP_APP_FORMAT_SIZE		0x01
+#define PBAP_APP_PBSIZE_SIZE		0x02
+#define PBAP_APP_MISS_CALL_SIZE		0x01
+
 #define PBAP_PCE_UUID ((const uint8_t []) \
 { 0x79, 0x61, 0x35, 0xf0, \
 		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
@@ -33,6 +52,34 @@
 static void debug(const char *msg)
 {
 	printf("[PCE] %s", msg);
+}
+
+static obex_object_t *obex_obj_init(obex_t *obex, const char *name, const char *type)
+{
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+	uint8_t uname[200];
+	int uname_len;
+
+	obj = OBEX_ObjectNew(obex, OBEX_CMD_GET);
+	if (!obj)
+		return NULL;
+
+	hd.bq4 = context.connection_id;
+	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_CONNECTION, hd,
+			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
+
+	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+	hd.bs = uname;
+
+	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_NAME,
+			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
+
+	hd.bs = (uint8_t *) type;
+	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TYPE,
+			hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
+
+	return obj;
 }
 
 static int pce_sync(pce_t pce)
@@ -74,7 +121,6 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 	pce_t *pce;
 	bdaddr_t bd;
 
-	/* FIXME convert char to bdaddr */
 	str2ba(bdaddr, bd);
 	if (bacmp(bd, BDADDR_ANY) == 0) {
 		debug("ERROR Device bt address error!\n");
@@ -160,8 +206,35 @@ int PCE_Set_PB(pce_t pce, char *name)
 
 int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
 {
-	/* FIXME */
-	return 0;
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+	uint8_t app[21];
+
+	obj = obex_obj_init(pce->obex, query->name, XOBEX_BT_PHONEBOOK);
+	if (!obj) {
+		debug("Error Creating Object (Pull PhoneBook)\n");
+		return -1;
+	}
+
+	app[0]	= PBAP_APP_FILTER_ID;
+	app[1]	= PBAP_APP_FILTER_SIZE;
+	app[10]	= PBAP_APP_FORMAT_ID;
+	app[11]	= PBAP_APP_FORMAT_SIZE;
+	app[13]	= PBAP_APP_MAXLIST_ID;
+	app[14]	= PBAP_APP_MAXLIST_SIZE;
+	app[17]	= PBAP_APP_LISTOFFSET_ID;
+	app[18]	= PBAP_APP_LISTOFFSET_SIZE;
+
+	memcpy(&app[2], query->filter, sizeof(query->filter));
+	app[12] = query->format;
+	/* FIXME the maxlist default is 0xffffff */
+	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[15]);
+	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[19]);
+
+	hd.bs = app;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
+
+	return pce_sync_request(pce, obj);
 }
 
 int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
