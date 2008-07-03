@@ -23,8 +23,8 @@
 typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;
-	int		finished;
-	int		succes;
+	int			finished;
+	int			succes;
 } pce_t;
 
 typedef struct {
@@ -38,9 +38,14 @@ typedef struct {
 	uint8_t		format;
 } pce_query_t;
 
-pce_t *PCE_Connect(const char *bdaddr, uint8_t channel);
+pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
+
+int PCE_Connect(pce_t *pce);
 
 int PCE_Set_PB(pce_t *pce, char *name);
+
 int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf);
+
 int PCE_VCard_List(pce_t *pce, pce_query_t  *query, char **buf);
+
 int PCE_VCard_Entry(pce_t *pce, pce_query_t  *query, char **buf);

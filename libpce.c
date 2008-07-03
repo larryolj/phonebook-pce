@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <bluetooth/bluetooth.h>
 #include "libpce.h"
 
 #define XOBEX_BT_PHONEBOOK	"x-bt/phonebook"
@@ -67,60 +68,57 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	pce = OBEX_GetUserData(obex);
 }
 
-pce_t *PCE_Connect(const char *bdaddr, uint8_t channel)
+pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 {
 	obex_t *obex = NULL;
-	obex_object_t *obj;
-	obex_headerdata_t hd;
 	pce_t *pce;
+	bdaddr_t bd;
 
 	/* FIXME convert char to bdaddr */
-	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
+	str2ba(bdaddr, bd);
+	if (bacmp(bd, BDADDR_ANY) == 0) {
 		debug("ERROR Device bt address error!\n");
-		goto fail;
+		return NULL;
 	}
 
 	obex = OBEX_Init(OBEX_TRANS_BLUETOOTH, obex_pce_event, 0);
 	if (!obex) {
 		debug("OBEX_Init failed");
-		goto fail;
+		return NULL;
 	}
 
 	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, bdaddr, channel) < 0) {
 		debug("Transport connect error!");
-		goto fail;
-	}
-
-	obj = OBEX_ObjectNew(obex, OBEX_CMD_CONNECT);
-	if (!obj) {
-		debug("Error creating object");
-		goto fail;
-	}
-
-	hd.bs = PBAP_PCE_UUID;
-	if (OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TARGET, hd,
-			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
-		debug("Error adding header");
-		OBEX_ObjectDelete(obex, obj);
-		goto fail;
+		OBEX_Cleanup(obex);
+		return NULL;
 	}
 
 	/* FIXME glib? */
 	pce = g_new0(pce_t, 1);
 	pce->obex = obex;
-
-	if (pce_sync_request(pce, obj) < 0)
-		goto fail;
-
 	return pce;
+}
 
-fail:
-	if (obex)
-		OBEX_Cleanup(obex);
-	if (pce)
-		g_free(pce);
-	debug("ERROR Creating connection\n");
-	return NULL;
+int PCE_Connect(pce_t pce)
+{
+	obex_object_t *obj;
+	obex_headerdata_t hd;
+
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_CONNECT);
+	if (!obj) {
+		debug("Error creating object");
+		return -1;
+	}
+
+	hd.bs = PBAP_PCE_UUID;
+	if (OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TARGET, hd,
+			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
+		debug("Error adding header");
+		OBEX_ObjectDelete(pce->obex, obj);
+		return -1;
+	}
+
+	return pce_sync_request(pce, obj);
 }
 
 
