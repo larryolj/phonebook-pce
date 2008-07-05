@@ -163,11 +163,20 @@ int main(int argc, char *argv[])
 	char *cmd;
 
 	if (argc < 2) {
-		fprintf(stderr, "Bluetooth Address missing\n");
+		printf("Bluetooth Address missing\n");
 		exit(EXIT_FAILURE);
 	}
 
 	pce = PCE_Init(argv[1], PBAP_PCE_CHANNE);
+	if (!pce) {
+		printf("Dont initialize PCE\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (PCE_Connect(pce) < 0) {
+		printf ("Dont Connect to PSE \n");
+		exit(EXIT_FAILURE);
+	}
 
 	if (argc > 2){
 		cmd = argv[2];
