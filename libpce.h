@@ -34,8 +34,10 @@
 typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;
+	char		*buf;
 	int			finished;
 	int			succes;
+	uint16_t	size;
 } pce_t;
 
 typedef struct {
@@ -52,6 +54,8 @@ typedef struct {
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
 
 int PCE_Connect(pce_t *pce);
+
+int PCE_Disconnect(pce_t *pce);
 
 int PCE_Set_PB(pce_t *pce, char *name);
 
