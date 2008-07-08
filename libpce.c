@@ -18,7 +18,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <glib.h>
+
 #include <bluetooth/bluetooth.h>
+#include <arpa/inet.h>
 #include "libpce.h"
 
 #define XOBEX_BT_PHONEBOOK	"x-bt/phonebook"
@@ -93,51 +99,51 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		uint16_t size;
 
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
-		debug("PhoneBook Size %d", size);
+		printf("PhoneBook Size %d", size);
 	}
 
 	if (buf && sizeof(buf) > 0){
 		int ubuf_len;
 
 		ubuf_len = sizeof(buf)/2;
-		tmp_buf = g_malloc0(ubuf_len);
+		buf = g_malloc0(ubuf_len);
 		OBEX_UnicodeToChar((uint8_t *) pce->buf, (uint8_t *) buf, ubuf_len);
 
-		debug("Get Obj\n %s", pce->buf);
+		printf("Get Obj\n %s", pce->buf);
 	}
 	g_free(buf);
 }
 
 
-static obex_object_t *obex_obj_init(obex_t *obex, const char *name, const char *type)
+static obex_object_t *obex_obj_init(pce_t *pce, const char *name, const char *type)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t uname[200];
 	int uname_len;
 
-	obj = OBEX_ObjectNew(obex, OBEX_CMD_GET);
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_GET);
 	if (!obj)
 		return NULL;
 
-	hd.bq4 = context.connection_id;
-	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_CONNECTION, hd,
+	hd.bq4 = pce->connection_id;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
 	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
 	hd.bs = uname;
 
-	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_NAME,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
 			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	hd.bs = (uint8_t *) type;
-	OBEX_ObjectAddHeader(obex, obj, OBEX_HDR_TYPE,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TYPE,
 			hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
 
 	return obj;
 }
 
-static int pce_sync(pce_t pce)
+static int pce_sync(pce_t *pce)
 {
 	while(!pce->finished)
 		if (OBEX_HandleInput(pce->obex, 20) <= 0)
@@ -148,10 +154,10 @@ static int pce_sync(pce_t pce)
 	return 0;
 }
 
-static int pce_sync_request(pce_t pce, obex_object_t obj)
+static int pce_sync_request(pce_t *pce, obex_object_t obj)
 {
 	if (!pce->finished)
-		return -EBUSY;
+		return -1;
 	pce->finished = 0;
 
 	OBEX_SetUserData(pce->obex, pce);
@@ -197,14 +203,14 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 		break;
 	case OBEX_EV_REQDONE:
 		if (rsp != OBEX_RSP_SUCCESS) {
-			debug("Command failed 0x%02x!", rsp);
+			debug("Command failed!");
 			pce->succes = 0;
 			break;
 		}
 		pce_req_done(pce, obj, cmd);
 		break;
 	default:
-		debug("Unknown event(0x%02x)/command(0x%02x)", evt, cmd);
+		/* debug("Unknown event(0x%02x)/command(0x%02x)", evt, cmd); */
 		break;
 	}
 	pce->finished = 1;
@@ -217,8 +223,8 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 	pce_t *pce;
 	bdaddr_t bd;
 
-	str2ba(bdaddr, bd);
-	if (bacmp(bd, BDADDR_ANY) == 0) {
+	str2ba(bdaddr, &bd);
+	if (bacmp(&bd, BDADDR_ANY) == 0) {
 		debug("ERROR Device bt address error!");
 		return NULL;
 	}
@@ -229,7 +235,7 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 		return NULL;
 	}
 
-	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, bdaddr, channel) < 0) {
+	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, &bd, channel) < 0) {
 		debug("Transport connect error!");
 		OBEX_Cleanup(obex);
 		return NULL;
@@ -241,7 +247,7 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 	return pce;
 }
 
-int PCE_Disconnect(pce_t pce)
+int PCE_Disconnect(pce_t *pce)
 {
 	debug("Disconnected!");
 	OBEX_TransportDisconnect(pce->obex);
@@ -249,7 +255,7 @@ int PCE_Disconnect(pce_t pce)
 	return 0;
 }
 
-int PCE_Connect(pce_t pce)
+int PCE_Connect(pce_t *pce)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -272,7 +278,7 @@ int PCE_Connect(pce_t pce)
 }
 
 
-int PCE_Set_PB(pce_t pce, char *name)
+int PCE_Set_PB(pce_t *pce, char *name)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -287,7 +293,7 @@ int PCE_Set_PB(pce_t pce, char *name)
 	}
 
 	memset(&hd, 0, sizeof(hd));
-	hd.bq4 = context.connection_id;
+	hd.bq4 = pce->connection_id;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
@@ -315,11 +321,11 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
 	uint8_t app[21];
 
 	if (!pce || !pce->obex || !pce->connection_id) {
-		debug("Not connected")
+		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce->obex, query->name, XOBEX_BT_PHONEBOOK);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_PHONEBOOK);
 	if (!obj) {
 		debug("Error Creating Object (Pull PhoneBook)");
 		return -1;
@@ -334,7 +340,7 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
 	app[17]	= PBAP_APP_LISTOFFSET_ID;
 	app[18]	= PBAP_APP_LISTOFFSET_SIZE;
 
-	memcpy(&app[2], query->filter, PBAP_APP_FILTER_SIZE);
+	memcpy(&app[2], &query->filter, PBAP_APP_FILTER_SIZE);
 	app[12] = query->format;
 	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[15]);
@@ -355,14 +361,15 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t *app;
+	uint8_t usearch[200];
 	int usearch_len, app_len;
 
 	if (!pce || !pce->obex || !pce->connection_id) {
-		debug("Not connected")
+		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce->obex, query->name, XOBEX_BT_VCARDLIST);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARDLIST);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard List)");
 		return -1;
@@ -412,11 +419,11 @@ int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, char **buf)
 	uint8_t app[13];
 
 	if (!pce || !pce->obex || !pce->connection_id) {
-		debug("Not connected")
+		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce->obex, query->name, XOBEX_BT_VCARD);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARD);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard Entry)");
 		return -1;
@@ -427,7 +434,7 @@ int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, char **buf)
 	app[10]	= PBAP_APP_FORMAT_ID;
 	app[11]	= PBAP_APP_FORMAT_SIZE;
 
-	memcpy(&app[2], query->filter, PBAP_APP_FILTER_SIZE);
+	memcpy(&app[2], &query->filter, PBAP_APP_FILTER_SIZE);
 	app[12]	= query->format;
 
 	hd.bs = app;

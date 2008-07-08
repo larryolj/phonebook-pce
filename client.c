@@ -21,29 +21,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <signal.h>
-#include <glib.h>
 
-#include <arpa/inet.h>
 #include "libpce.h"
 
 #define PBAP_PCE_CHANNEL		0x10
-
-static GMainLoop *main_loop;
-
-static void client_disconnect(obex_t *obex);
-static obex_t *client_connect(bdaddr_t *bdaddr, uint8_t channel);
-
-static void sig_term(int sig)
-{
-	g_main_loop_quit(main_loop);
-}
 
 static int set_phonebook(pce_t *pce)
 {
 	char name[100];
 
-	printf("Insert folder name, '..' for parent or '\\' for root\n>> ");
+	printf("Insert folder name, '..' for parent or '/' for root\n>> ");
 	scanf("%s", name);
 
 	return PCE_Set_PB(pce, name);
@@ -74,7 +61,7 @@ static int pull_vcard_list(pce_t *pce)
 	return 0;
 }
 
-static int pull_phonebook(obex_t *obex, uint16_t maxlist)
+static int pull_phonebook(pce_t *pce, uint16_t maxlist)
 {
 	pce_query_t query;
 	char name[200];
@@ -116,7 +103,7 @@ static int pull_vcard_entry(pce_t *pce)
 	return 0;
 }
 
-static void user_cmd(pce_t *pc, char cmd)
+static void user_cmd(pce_t *pce, char cmd)
 {
 	switch (cmd) {
 	case 'h':
@@ -127,28 +114,28 @@ static void user_cmd(pce_t *pc, char cmd)
 			"'s' - Set Phonebook\n"\
 			"'n' - Phonebook Size\n");
 	case 'p':
-		if (pce.connection_id) {
+		if (pce->connection_id) {
 			pull_phonebook(pce, 0xffff);
 			break;
 		}
 	case 'l':
-		if (pce.connection_id) {
+		if (pce->connection_id) {
 			pull_vcard_list(pce);
 			break;
 		}
 	case 'e':
-		if (pce.connection_id) {
+		if (pce->connection_id) {
 			pull_vcard_entry(pce);
 			break;
 		}
 	case 'n':
-		if (pce.connection_id) {
+		if (pce->connection_id) {
 			pull_phonebook(pce, 0x0);
 			break;
 		}
 	case 's':
-		if (pce.connection_id) {
-			set_phonebook(obex);
+		if (pce->connection_id) {
+			set_phonebook(pce);
 			break;
 		}
 		printf("Not Connected\n");
@@ -167,7 +154,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	pce = PCE_Init(argv[1], PBAP_PCE_CHANNE);
+	pce = PCE_Init(argv[1], PBAP_PCE_CHANNEL);
 	if (!pce) {
 		printf("Dont initialize PCE\n");
 		exit(EXIT_FAILURE);
@@ -180,7 +167,7 @@ int main(int argc, char *argv[])
 
 	if (argc > 2){
 		cmd = argv[2];
-		user_cmd(pce, cmd[1])
+		user_cmd(pce, cmd[1]);
 	}
 
 	PCE_Disconnect(pce);
