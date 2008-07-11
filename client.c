@@ -195,6 +195,7 @@ int main(int argc, char *argv[])
 			printf("Command not found!\n");
 		}
 	}
+	PCE_Cleanup(pce);
 
 	printf("Exit\n");
 

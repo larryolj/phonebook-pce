@@ -81,6 +81,8 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 	unsigned int hlen;
 	char *buf = NULL;
 
+	debug("Get Done")
+
 	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen)) {
 		switch(hi) {
 		case OBEX_HDR_BODY:
@@ -99,7 +101,7 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		uint16_t size;
 
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
-		printf("PhoneBook Size %d", size);
+		printf("PhoneBook Size %d\n", size);
 	}
 
 	if (buf && sizeof(buf) > 0){
@@ -109,7 +111,7 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		buf = g_malloc0(ubuf_len);
 		OBEX_UnicodeToChar((uint8_t *) pce->buf, (uint8_t *) buf, ubuf_len);
 
-		printf("Get Obj\n %s", pce->buf);
+		printf("Get Obj\n %s\n", pce->buf);
 	}
 	g_free(buf);
 }
