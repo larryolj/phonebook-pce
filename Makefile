@@ -1,17 +1,21 @@
 PKG = `pkg-config --libs --cflags glib-2.0`
 
-SRC = main.c
+SRC = client.c
+LIBSRC = libpce.c
 
-PROG = pbcliet
+PROG = pbclient
 
-OBJS = main.o client.o
+OBJS = libpce.so client.o
 
 LIB = -lbluetooth -lopenobex -lglib-2.0
 
-all:
-		gcc -shared -fPIC -Wall -O2 libpce.c $(PKG) $(LIB) -o libpce.so
-		gcc $(SRC) -o $(PROG) $(PKG) $(LIB)
-		gcc client.c -o pce_client $(PKG) $(LIB) ./libpce.so
+all: $(OBJS)
+
+libpce.so:
+		gcc -shared -fPIC -Wall -O2 $(LIBSRC) $(PKG) $(LIB) -o libpce.so
+
+client.o:
+		gcc $(SRC) -o $(PROG) ./libpce.so
 
 clean:
 		rm -f $(PROG) $(OBJS) *.c~ *.h~ 2>/dev/null
