@@ -146,8 +146,10 @@ static obex_object_t *obex_obj_init(pce_t *pce, const char *name, const char *ty
 static int pce_sync(pce_t *pce)
 {
 	while(!pce->finished)
-		if (OBEX_HandleInput(pce->obex, 20) <= 0)
+		if (OBEX_HandleInput(pce->obex, 20) <= 0) {
+			debug("HandleInput error");
 			return -1;
+		}
 
 	if (!pce->succes)
 		return -1;
@@ -156,8 +158,6 @@ static int pce_sync(pce_t *pce)
 
 static int pce_sync_request(pce_t *pce, obex_object_t obj)
 {
-	if (!pce->finished)
-		return -1;
 	pce->finished = 0;
 
 	OBEX_SetUserData(pce->obex, pce);
@@ -193,6 +193,7 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	pce_t *pce;
 
 	pce = OBEX_GetUserData(obex);
+	printf("[PCE] event(0x%02x)/command(0x%02x)\n", evt, cmd);
 
 	switch(evt) {
 	case OBEX_EV_PROGRESS:
@@ -210,7 +211,6 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 		pce_req_done(pce, obj, cmd);
 		break;
 	default:
-		/* debug("Unknown event(0x%02x)/command(0x%02x)", evt, cmd); */
 		break;
 	}
 	pce->finished = 1;
@@ -245,6 +245,13 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 	pce = g_new0(pce_t, 1);
 	pce->obex = obex;
 	return pce;
+}
+
+void PCE_Cleanup(pce_t *pce)
+{
+	OBEX_Cleanup(pce->obex);
+	g_free(pce->buf);
+	g_free(pce);
 }
 
 int PCE_Disconnect(pce_t *pce)

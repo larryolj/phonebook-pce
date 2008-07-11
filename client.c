@@ -24,7 +24,20 @@
 
 #include "libpce.h"
 
-#define PBAP_PCE_CHANNEL		0x10
+#define PBAP_PCE_CHANNEL		0x0A
+
+static void client_help()
+{
+	printf("'c' - Connect Phonebook\n"\
+		"'d' - Disconnect Phonebook\n"\
+		"'p' - Pull Phonebook\n"\
+		"'l' - Pull VCard List\n"\
+		"'e' - Pull VCard Entry\n"\
+		"'s' - Set Phonebook\n"\
+		"'n' - Phonebook Size\n"\
+		"'h' - this help\n"\
+		"'q' - quit program\n");
+}
 
 static int set_phonebook(pce_t *pce)
 {
@@ -56,7 +69,9 @@ static int pull_vcard_list(pce_t *pce)
 		printf("Pull vcard error");
 		return -1;
 	}
+
 	printf("Pull vcard:\n %s\n", buf);
+	g_free(buf);
 
 	return 0;
 }
@@ -79,6 +94,7 @@ static int pull_phonebook(pce_t *pce, uint16_t maxlist)
 	}
 
 	printf("Pull pb:\n %s\n", buf);
+	g_free(buf);
 
 	return 0;
 }
@@ -100,77 +116,85 @@ static int pull_vcard_entry(pce_t *pce)
 	}
 
 	printf("Pull entry:\n %s\n", buf);
-	return 0;
-}
+	g_free(buf);
 
-static void user_cmd(pce_t *pce, char cmd)
-{
-	switch (cmd) {
-	case 'h':
-		printf("Select phonebook command\n"\
-			"'p' - Pull Phonebook\n"\
-			"'l' - Pull VCard List\n"\
-			"'e' - Pull VCard Entry\n"\
-			"'s' - Set Phonebook\n"\
-			"'n' - Phonebook Size\n");
-	case 'p':
-		if (pce->connection_id) {
-			pull_phonebook(pce, 0xffff);
-			break;
-		}
-	case 'l':
-		if (pce->connection_id) {
-			pull_vcard_list(pce);
-			break;
-		}
-	case 'e':
-		if (pce->connection_id) {
-			pull_vcard_entry(pce);
-			break;
-		}
-	case 'n':
-		if (pce->connection_id) {
-			pull_phonebook(pce, 0x0);
-			break;
-		}
-	case 's':
-		if (pce->connection_id) {
-			set_phonebook(pce);
-			break;
-		}
-		printf("Not Connected\n");
-	default:
-		printf("Command not found!\n");
-	}
+	return 0;
 }
 
 int main(int argc, char *argv[])
 {
 	pce_t *pce;
-	char *cmd;
+	uint8_t channel;
+	char cmd[10];
+	int run = 1;
 
 	if (argc < 2) {
 		printf("Bluetooth Address missing\n");
 		exit(EXIT_FAILURE);
 	}
 
-	pce = PCE_Init(argv[1], PBAP_PCE_CHANNEL);
+	if (argc >= 3)
+		channel = atoi(argv[2]);
+	else
+		channel = PBAP_PCE_CHANNEL;
+
+	pce = PCE_Init(argv[1], channel);
 	if (!pce) {
 		printf("Dont initialize PCE\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (PCE_Connect(pce) < 0) {
-		printf ("Dont Connect to PSE \n");
-		exit(EXIT_FAILURE);
+	while (run) {
+		printf(">> ");
+		scanf("%s", cmd);
+		switch (cmd[0] | 0x20) {
+		case 'c':
+			if (PCE_Connect(pce) < 0)
+				printf ("Dont Connect to PSE \n");
+			break;
+		case 'p':
+			if (pce->connection_id) {
+				pull_phonebook(pce, 0xffff);
+				break;
+			}
+		case 'l':
+			if (pce->connection_id) {
+				pull_vcard_list(pce);
+				break;
+			}
+		case 'e':
+			if (pce->connection_id) {
+				pull_vcard_entry(pce);
+				break;
+			}
+		case 'n':
+			if (pce->connection_id) {
+				pull_phonebook(pce, 0x0);
+				break;
+			}
+		case 's':
+			if (pce->connection_id) {
+				set_phonebook(pce);
+				break;
+			}
+		case 'd':
+			if (pce->connection_id) {
+				PCE_Disconnect(pce);
+				break;
+			}
+			printf("Not Connected\n");
+			break;
+		case 'h':
+			client_help();
+			break;
+		case 'q':
+			run = 0;
+			break;
+		default:
+			client_help();
+			printf("Command not found!\n");
+		}
 	}
-
-	if (argc > 2){
-		cmd = argv[2];
-		user_cmd(pce, cmd[1]);
-	}
-
-	PCE_Disconnect(pce);
 
 	printf("Exit\n");
 

@@ -1,6 +1,3 @@
-
-CFLAGS = -Wall -g -O2 `pkg-config --cflags openobex dbus-1 dbus-glib-1`
-
 PKG = `pkg-config --libs --cflags glib-2.0`
 
 SRC = main.c

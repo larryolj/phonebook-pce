@@ -53,6 +53,8 @@ typedef struct {
 
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
 
+void PCE_Cleanup(pce_t *pce);
+
 int PCE_Connect(pce_t *pce);
 
 int PCE_Disconnect(pce_t *pce);
