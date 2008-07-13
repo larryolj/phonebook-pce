@@ -82,7 +82,7 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 	unsigned int hlen;
 	char *buf = NULL;
 
-	debug("Get Done")
+	debug("Get Done");
 
 	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen)) {
 		switch(hi) {
