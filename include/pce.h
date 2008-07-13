@@ -2,7 +2,7 @@
  *
  *  Lib PhoneBook Client Access
  *
- *  Copyright (C) 2008  Larry Junior <larry.junior@openbossa.org>
+ *  Copyright (C) 2008  Larry Junior <larry.olj@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

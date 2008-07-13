@@ -2,7 +2,7 @@
  *
  *  Lib PhoneBook Client Access
  *
- *  Copyright (C) 2008  Larry Junior <larry.junior@openbossa.org>
+ *  Copyright (C) 2008  Larry Junior <larry.olj@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -25,7 +26,7 @@
 
 #include <bluetooth/bluetooth.h>
 #include <arpa/inet.h>
-#include "libpce.h"
+#include "pce.h"
 
 #define XOBEX_BT_PHONEBOOK	"x-bt/phonebook"
 #define XOBEX_BT_VCARD		"x-bt/vcard"
