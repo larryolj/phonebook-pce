@@ -56,18 +56,48 @@
 		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
 		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
 
-static void debug(const char *msg)
+typedef struct {
+    guint8	version;
+    guint8	flags;
+    guint16	mtu;
+} __attribute__ ((packed)) obex_connect_hdr_t;
+
+static void debug(const char *format, ...)
 {
+	va_list ap;
+	char *msg;
+
+	va_start(ap, format);
+
+	vasprintf(&msg, format, ap);
+
+	va_end(ap);
+
 	printf("[PCE] %s\n", msg);
+	free(msg);
 }
 
 static void connect_done(pce_t *pce, obex_object_t *obj)
 {
+	obex_connect_hdr_t *nonhdr;
 	obex_headerdata_t hd;
+	uint8_t *buffer;
 	uint8_t hi;
+	guint16 mtu;
 	unsigned int hlen;
 
 	debug("Connect OK!");
+
+	if (OBEX_ObjectGetNonHdrData(obj, &buffer) != sizeof(*nonhdr)) {
+		OBEX_ObjectSetRsp(obj, OBEX_RSP_FORBIDDEN, OBEX_RSP_FORBIDDEN);
+		debug("Invalid OBEX CONNECT packet");
+		return;
+	}
+
+	nonhdr = (obex_connect_hdr_t *) buffer;
+	mtu = g_ntohs(nonhdr->mtu);
+	debug("Version: 0x%02x. Flags: 0x%02x  OBEX packet length: %d",
+			nonhdr->version, nonhdr->flags, mtu);
 
 	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen))
 		if (hi == OBEX_HDR_CONNECTION)
@@ -87,8 +117,14 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen)) {
 		switch(hi) {
 		case OBEX_HDR_BODY:
-			buf = g_malloc0(hlen +1);
-			strncpy(buf, (char *) hd.bs, hlen);
+
+			if (hlen == 0) {
+				pce->buf = g_strdup("");
+				break;
+			}
+
+			pce->buf = g_malloc0(hlen +1);
+			memcpy((char *) pce->buf, (char *) hd.bs, hlen);
 			break;
 		case OBEX_HDR_APPARAM:
 			app = g_malloc0(hlen);
@@ -102,18 +138,9 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		uint16_t size;
 
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
-		printf("PhoneBook Size %d\n", size);
+		debug("PhoneBook Size %d", size);
 	}
 
-	if (buf && sizeof(buf) > 0){
-		int ubuf_len;
-
-		ubuf_len = sizeof(buf)/2;
-		buf = g_malloc0(ubuf_len);
-		OBEX_UnicodeToChar((uint8_t *) pce->buf, (uint8_t *) buf, ubuf_len);
-
-		printf("Get Obj\n %s\n", pce->buf);
-	}
 	g_free(buf);
 }
 
@@ -196,7 +223,7 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	pce_t *pce;
 
 	pce = OBEX_GetUserData(obex);
-	printf("[PCE] event(0x%02x)/command(0x%02x)\n", evt, cmd);
+	debug("event(0x%02x)/command(0x%02x)", evt, cmd);
 
 	switch(evt) {
 	case OBEX_EV_PROGRESS:
@@ -207,7 +234,7 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 		break;
 	case OBEX_EV_REQDONE:
 		if (rsp != OBEX_RSP_SUCCESS) {
-			debug("Command failed!");
+			debug("Command failed!/response(0x%02x)", rsp);
 			pce->succes = 0;
 			break;
 		}
@@ -244,7 +271,6 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 		return NULL;
 	}
 
-	/* FIXME glib? */
 	pce = g_new0(pce_t, 1);
 	pce->obex = obex;
 	return pce;
@@ -253,7 +279,6 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 void PCE_Cleanup(pce_t *pce)
 {
 	OBEX_Cleanup(pce->obex);
-	g_free(pce->buf);
 	g_free(pce);
 }
 
@@ -371,7 +396,7 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t *app;
-	uint8_t usearch[200];
+	char *usearch;
 	int usearch_len, app_len;
 
 	if (!pce || !pce->obex || !pce->connection_id) {
@@ -385,8 +410,8 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 		return -1;
 	}
 
-	usearch_len = OBEX_CharToUnicode(usearch, (uint8_t *) query->search,
-			sizeof(usearch));
+	usearch = g_convert((const gchar *) query->search, -1,
+				"UTF8", "ASCII", NULL, (gsize *) &usearch_len, NULL);
 
 	app_len = 16 + usearch_len;
 	app = g_malloc0(app_len);
@@ -413,10 +438,10 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	hd.bs = app;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, app_len, 0);
 
-	g_free(app);
-
 	if (pce_sync_request(pce, obj) < 0)
 		return -1;
+
+	g_free(app);
 
 	*buf = pce->buf;
 	return 0;

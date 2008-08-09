@@ -67,7 +67,7 @@ static int pull_vcard_list(pce_t *pce)
 	query.search = search;
 	query.maxlist = 0xFFFF;
 	if (PCE_VCard_List(pce, &query, &buf) < 0) {
-		printf("Pull vcard error");
+		printf("Pull vcard error\n");
 		return -1;
 	}
 
@@ -90,7 +90,7 @@ static int pull_phonebook(pce_t *pce, uint16_t maxlist)
 	query.maxlist = maxlist;
 
 	if (PCE_Pull_PB(pce, &query, &buf) < 0) {
-		printf("Pull pb error");
+		printf("Pull pb error\n");
 		return -1;
 	}
 
@@ -112,7 +112,7 @@ static int pull_vcard_entry(pce_t *pce)
 	query.name = name;
 
 	if (PCE_VCard_Entry(pce, &query, &buf) < 0) {
-		printf("Pull entry error");
+		printf("Pull entry error\n");
 		return -1;
 	}
 
