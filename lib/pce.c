@@ -429,6 +429,7 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 
 	app[2] = query->order;
 	app[5] = query->search_attr;
+	printf("DEBUG %d, %d \n", query->offset, query->search_attr);
 	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[8]);
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[12]);
