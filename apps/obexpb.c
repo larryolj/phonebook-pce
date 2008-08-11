@@ -52,7 +52,7 @@ static int set_phonebook(pce_t *pce)
 
 static int pull_vcard_list(pce_t *pce)
 {
-	pce_query_t query;
+	pce_query_t *query;
 	char name[200];
 	char search[180];
 	char *buf;
@@ -63,61 +63,63 @@ static int pull_vcard_list(pce_t *pce)
 	printf("Insert search value\n>> ");
 	scanf("%s", search);
 
-	query.name = name;
-	query.search = search;
-	query.maxlist = 0xFFFF;
-	if (PCE_VCard_List(pce, &query, &buf) < 0) {
+	query = PCE_Query_New((const char *) name);
+	query->search = strdup(search);
+
+	if (PCE_VCard_List(pce, query, &buf) < 0) {
 		printf("Pull vcard error\n");
 		return -1;
 	}
 
 	printf("Pull vcard:\n %s\n", buf);
 	free(buf);
+	PCE_Query_Free(query);
 
 	return 0;
 }
 
 static int pull_phonebook(pce_t *pce, uint16_t maxlist)
 {
-	pce_query_t query;
+	pce_query_t *query;
 	char name[200];
 	char *buf;
 
 	printf("Insert Phonebook name\n>> ");
 	scanf("%s.vcf", name);
 
-	query.name = name;
-	query.maxlist = maxlist;
+	query = PCE_Query_New((const char *) name);
 
-	if (PCE_Pull_PB(pce, &query, &buf) < 0) {
+	if (PCE_Pull_PB(pce, query, &buf) < 0) {
 		printf("Pull pb error\n");
 		return -1;
 	}
 
 	printf("Pull pb:\n %s\n", buf);
 	free(buf);
+	PCE_Query_Free(query);
 
 	return 0;
 }
 
 static int pull_vcard_entry(pce_t *pce)
 {
-	pce_query_t query;
+	pce_query_t *query;
 	char name[200];
 	char *buf;
 
 	printf("Insert contact name\n>> ");
 	scanf("%s.vcf", name);
 
-	query.name = name;
+	query = PCE_Query_New((const char *) name);
 
-	if (PCE_VCard_Entry(pce, &query, &buf) < 0) {
+	if (PCE_VCard_Entry(pce, query, &buf) < 0) {
 		printf("Pull entry error\n");
 		return -1;
 	}
 
 	printf("Pull entry:\n %s\n", buf);
 	free(buf);
+	PCE_Query_Free(query);
 
 	return 0;
 }

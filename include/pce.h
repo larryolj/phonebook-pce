@@ -51,6 +51,10 @@ typedef struct {
 	uint8_t		format;
 } pce_query_t;
 
+pce_query_t *PCE_Query_New(const char *name);
+
+void PCE_Query_Free(pce_query_t *query);
+
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
 
 void PCE_Cleanup(pce_t *pce);

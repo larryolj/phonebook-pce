@@ -110,7 +110,6 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 	uint32_t app_len;
 	uint8_t hi, *app = NULL;
 	unsigned int hlen;
-	char *buf = NULL;
 
 	debug("Get Done");
 
@@ -123,11 +122,11 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 				break;
 			}
 
-			pce->buf = g_malloc0(hlen +1);
-			memcpy((char *) pce->buf, (char *) hd.bs, hlen);
+			pce->buf = malloc(hlen +1);
+			strncpy((char *) pce->buf, (char *) hd.bs, hlen);
 			break;
 		case OBEX_HDR_APPARAM:
-			app = g_malloc0(hlen);
+			app = malloc(hlen);
 			memcpy(app, hd.bs, hlen);
 			app_len = hlen;
 			break;
@@ -140,8 +139,6 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
 		debug("PhoneBook Size %d", size);
 	}
-
-	g_free(buf);
 }
 
 
@@ -246,6 +243,31 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	pce->finished = 1;
 }
 
+pce_query_t *PCE_Query_New(const char *name)
+{
+	pce_query_t *query;
+
+	query = g_new0(pce_query_t, 1);
+	if (name)
+		query->name = strdup(name);
+	else
+		query->name = strdup("");
+	query->maxlist = 0xFFFF;
+
+	return query;
+}
+
+void PCE_Query_Free(pce_query_t *query)
+{
+	if (query) {
+		if (query->name)
+			free(query->name);
+		if (query->search)
+			free(query->search);
+		free(query);
+	}
+}
+
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 
 {
@@ -279,7 +301,7 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 void PCE_Cleanup(pce_t *pce)
 {
 	OBEX_Cleanup(pce->obex);
-	g_free(pce);
+	free(pce);
 }
 
 int PCE_Disconnect(pce_t *pce)
@@ -311,7 +333,6 @@ int PCE_Connect(pce_t *pce)
 
 	return pce_sync_request(pce, obj);
 }
-
 
 int PCE_Set_PB(pce_t *pce, char *name)
 {
@@ -396,8 +417,7 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t *app;
-	char *usearch;
-	int usearch_len, app_len;
+	int search_len, app_len;
 
 	if (!pce || !pce->obex || !pce->connection_id) {
 		debug("Not connected");
@@ -410,11 +430,15 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 		return -1;
 	}
 
-	usearch = g_convert((const gchar *) query->search, -1,
-				"UTF8", "ASCII", NULL, (gsize *) &usearch_len, NULL);
+	search_len = 0;
+	app_len = 14;
 
-	app_len = 16 + usearch_len;
-	app = g_malloc0(app_len);
+	if (query->search) {
+		search_len = strlen(query->search);
+		app_len += 2 + search_len;
+	}
+
+	app = malloc(app_len);
 
 	app[0]	= PBAP_APP_ORDER_ID;
 	app[1]	= PBAP_APP_ORDER_SIZE;
@@ -424,17 +448,18 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	app[7]	= PBAP_APP_MAXLIST_SIZE;
 	app[10]	= PBAP_APP_LISTOFFSET_ID;
 	app[11]	= PBAP_APP_LISTOFFSET_SIZE;
-	app[14]	= PBAP_APP_SEARCH_VAL_ID;
-	app[15]	= usearch_len;
 
 	app[2] = query->order;
 	app[5] = query->search_attr;
-	printf("DEBUG %d, %d \n", query->offset, query->search_attr);
 	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[8]);
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[12]);
 
-	memcpy(&app[16], usearch, usearch_len);
+	if (search_len > 0) {
+		app[14]	= PBAP_APP_SEARCH_VAL_ID;
+		app[15]	= search_len;
+		memcpy(&app[16], query->search, search_len);
+	}
 
 	hd.bs = app;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, app_len, 0);
@@ -442,7 +467,7 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	if (pce_sync_request(pce, obj) < 0)
 		return -1;
 
-	g_free(app);
+	free(app);
 
 	*buf = pce->buf;
 	return 0;
