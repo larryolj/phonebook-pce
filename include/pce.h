@@ -35,9 +35,8 @@ typedef struct {
 	uint32_t 	connection_id;
 	obex_t 		*obex;
 	char		*buf;
-	int			finished;
-	int			succes;
 	uint16_t	size;
+	void		(*func);
 } pce_t;
 
 typedef struct {
@@ -51,22 +50,28 @@ typedef struct {
 	uint8_t		format;
 } pce_query_t;
 
+typedef void (*pce_cb_t)(pce_t *pce, int obex_rsp, char *buf);
+
 pce_query_t *PCE_Query_New(const char *name);
 
 void PCE_Query_Free(pce_query_t *query);
 
+gboolean PCE_Watch_cb(GIOChannel *chan, GIOCondition cond, void *data);
+
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
+
+int PCE_Get_FD(pce_t *pce);
 
 void PCE_Cleanup(pce_t *pce);
 
-int PCE_Connect(pce_t *pce);
-
 int PCE_Disconnect(pce_t *pce);
 
-int PCE_Set_PB(pce_t *pce, char *name);
+int PCE_Connect(pce_t *pce, pce_cb_t func);
 
-int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf);
+int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func);
 
-int PCE_VCard_List(pce_t *pce, pce_query_t  *query, char **buf);
+int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func);
 
-int PCE_VCard_Entry(pce_t *pce, pce_query_t  *query, char **buf);
+int PCE_VCard_List(pce_t *pce, pce_query_t  *query,  pce_cb_t func);
+
+int PCE_VCard_Entry(pce_t *pce, pce_query_t  *query, pce_cb_t func);
