@@ -32,17 +32,17 @@
 #define XOBEX_BT_VCARD		"x-bt/vcard"
 #define XOBEX_BT_VCARDLIST	"x-bt/vcard-listing"
 
-#define PBAP_APP_ORDER_ID			0x01
+#define PBAP_APP_ORDER_ID		0x01
 #define PBAP_APP_SEARCH_VAL_ID		0x02
 #define PBAP_APP_SEARCH_ATT_ID		0x03
-#define PBAP_APP_MAXLIST_ID			0x04
+#define PBAP_APP_MAXLIST_ID		0x04
 #define PBAP_APP_LISTOFFSET_ID		0x05
-#define PBAP_APP_FILTER_ID			0x06
-#define PBAP_APP_FORMAT_ID			0x07
-#define PBAP_APP_PBSIZE_ID			0x08
+#define PBAP_APP_FILTER_ID		0x06
+#define PBAP_APP_FORMAT_ID		0x07
+#define PBAP_APP_PBSIZE_ID		0x08
 #define PBAP_APP_MISS_CALL_ID		0x09
 
-#define PBAP_APP_ORDER_SIZE			0x01
+#define PBAP_APP_ORDER_SIZE		0x01
 #define PBAP_APP_SEARCH_ATT_SIZE	0x01
 #define PBAP_APP_MAXLIST_SIZE		0x02
 #define PBAP_APP_LISTOFFSET_SIZE	0x02
@@ -52,7 +52,7 @@
 #define PBAP_APP_MISS_CALL_SIZE		0x01
 
 #define PBAP_PCE_UUID ((const uint8_t []) \
-{ 0x79, 0x61, 0x35, 0xf0, \
+		{ 0x79, 0x61, 0x35, 0xf0, \
 		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
 		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
 
@@ -86,8 +86,6 @@ static void connect_done(pce_t *pce, obex_object_t *obj)
 	guint16 mtu;
 	unsigned int hlen;
 
-	debug("Connect OK!");
-
 	if (OBEX_ObjectGetNonHdrData(obj, &buffer) != sizeof(*nonhdr)) {
 		OBEX_ObjectSetRsp(obj, OBEX_RSP_FORBIDDEN, OBEX_RSP_FORBIDDEN);
 		debug("Invalid OBEX CONNECT packet");
@@ -102,6 +100,8 @@ static void connect_done(pce_t *pce, obex_object_t *obj)
 	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen))
 		if (hi == OBEX_HDR_CONNECTION)
 			pce->connection_id = hd.bq4;
+
+	debug("Connect OK!");
 }
 
 static void get_done(pce_t *pce, obex_object_t *obj)
@@ -122,8 +122,9 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 				break;
 			}
 
-			pce->buf = malloc(hlen +1);
-			strncpy((char *) pce->buf, (char *) hd.bs, hlen);
+			pce->buf = g_strdup((char *) hd.bs);
+			//pce->buf = malloc(hlen +1);
+			//strncpy((char *) pce->buf, (char *) hd.bs, hlen);
 			break;
 		case OBEX_HDR_APPARAM:
 			app = malloc(hlen);
@@ -139,10 +140,11 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
 		debug("PhoneBook Size %d", size);
 	}
+
 }
 
-
-static obex_object_t *obex_obj_init(pce_t *pce, const char *name, const char *type)
+static obex_object_t *obex_obj_init(pce_t *pce, const char *name,
+			const char *type)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -170,30 +172,6 @@ static obex_object_t *obex_obj_init(pce_t *pce, const char *name, const char *ty
 	return obj;
 }
 
-static int pce_sync(pce_t *pce)
-{
-	while(!pce->finished)
-		if (OBEX_HandleInput(pce->obex, 20) <= 0) {
-			debug("HandleInput error");
-			return -1;
-		}
-
-	if (!pce->succes)
-		return -1;
-	return 0;
-}
-
-static int pce_sync_request(pce_t *pce, obex_object_t obj)
-{
-	pce->finished = 0;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return pce_sync(pce);
-}
-
 static void pce_req_done(pce_t *pce, obex_object_t *obj, int cmd)
 {
 	switch(cmd) {
@@ -211,13 +189,13 @@ static void pce_req_done(pce_t *pce, obex_object_t *obj, int cmd)
 	case OBEX_CMD_SETPATH:
 		break;
 	}
-	pce->succes = 1;
 }
 
 static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
-		int evt, int cmd, int rsp)
+			int evt, int cmd, int rsp)
 {
 	pce_t *pce;
+	pce_cb_t func;
 
 	pce = OBEX_GetUserData(obex);
 	debug("event(0x%02x)/command(0x%02x)", evt, cmd);
@@ -232,7 +210,6 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	case OBEX_EV_REQDONE:
 		if (rsp != OBEX_RSP_SUCCESS) {
 			debug("Command failed!/response(0x%02x)", rsp);
-			pce->succes = 0;
 			break;
 		}
 		pce_req_done(pce, obj, cmd);
@@ -240,7 +217,28 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	default:
 		break;
 	}
-	pce->finished = 1;
+
+	if (pce->func) {
+		func = (pce_cb_t) pce->func;
+		func(pce, rsp, pce->buf);
+	}
+}
+
+gboolean PCE_Watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
+{
+	pce_t *pce = data;
+
+	if (cond & G_IO_NVAL)
+		return FALSE;
+
+	if (cond & (G_IO_HUP | G_IO_ERR)) {
+		g_io_channel_close(chan);
+		return FALSE;
+	}
+
+	OBEX_HandleInput(pce->obex, 0);
+
+	return TRUE;
 }
 
 pce_query_t *PCE_Query_New(const char *name)
@@ -295,7 +293,15 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 
 	pce = g_new0(pce_t, 1);
 	pce->obex = obex;
+	pce->func = NULL;
 	return pce;
+}
+
+int PCE_Get_FD(pce_t *pce)
+{
+	if (pce)
+		return OBEX_GetFD(pce->obex);
+	return -1;
 }
 
 void PCE_Cleanup(pce_t *pce)
@@ -312,7 +318,7 @@ int PCE_Disconnect(pce_t *pce)
 	return 0;
 }
 
-int PCE_Connect(pce_t *pce)
+int PCE_Connect(pce_t *pce, pce_cb_t func)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -331,10 +337,16 @@ int PCE_Connect(pce_t *pce)
 		return -1;
 	}
 
-	return pce_sync_request(pce, obj);
+	pce->func = func;
+
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
+	return 0;
 }
 
-int PCE_Set_PB(pce_t *pce, char *name)
+int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -367,10 +379,16 @@ int PCE_Set_PB(pce_t *pce, char *name)
 
 	OBEX_ObjectSetNonHdrData(obj, nohdr_data, 2);
 
-	return pce_sync_request(pce, obj);
+	pce->func = func;
+
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
+	return 0;
 }
 
-int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
+int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -398,21 +416,22 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, char **buf)
 
 	memcpy(&app[2], &query->filter, PBAP_APP_FILTER_SIZE);
 	app[12] = query->format;
-	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[15]);
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[19]);
 
 	hd.bs = app;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
 
-	if (pce_sync_request(pce, obj) < 0)
-		return -1;
+	pce->func = func;
 
-	*buf = pce->buf;
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
 	return 0;
 }
 
-int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
+int PCE_VCard_List(pce_t *pce, pce_query_t *query, pce_cb_t func)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -451,7 +470,6 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 
 	app[2] = query->order;
 	app[5] = query->search_attr;
-	/* FIXME the maxlist default is 0xffff */
 	bt_put_unaligned(htons(query->maxlist), (uint16_t *) &app[8]);
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[12]);
 
@@ -464,16 +482,18 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, char **buf)
 	hd.bs = app;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, app_len, 0);
 
-	if (pce_sync_request(pce, obj) < 0)
-		return -1;
-
 	free(app);
 
-	*buf = pce->buf;
+	pce->func = func;
+
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
 	return 0;
 }
 
-int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, char **buf)
+int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, pce_cb_t func)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -501,9 +521,11 @@ int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, char **buf)
 	hd.bs = app;
 	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
 
-	if (pce_sync_request(pce, obj) < 0)
-		return -1;
+	pce->func = func;
 
-	*buf = pce->buf;
+	OBEX_SetUserData(pce->obex, pce);
+
+	OBEX_Request(pce->obex, obj);
+
 	return 0;
 }
