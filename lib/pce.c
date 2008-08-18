@@ -224,21 +224,11 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	}
 }
 
-gboolean PCE_Watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
+int PCE_HandleInput(pce_t *pce, int timeout)
 {
-	pce_t *pce = data;
-
-	if (cond & G_IO_NVAL)
-		return FALSE;
-
-	if (cond & (G_IO_HUP | G_IO_ERR)) {
-		g_io_channel_close(chan);
-		return FALSE;
-	}
-
-	OBEX_HandleInput(pce->obex, 0);
-
-	return TRUE;
+	if (pce)
+		return OBEX_HandleInput(pce->obex, timeout);
+	return -1;
 }
 
 pce_query_t *PCE_Query_New(const char *name)

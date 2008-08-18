@@ -217,6 +217,24 @@ static void client_input(pce_t *pce)
 	}
 }
 
+gboolean Watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
+{
+	pce_t *pce = data;
+
+	if (cond & G_IO_NVAL)
+		return FALSE;
+
+	if (cond & (G_IO_HUP | G_IO_ERR)) {
+		g_io_channel_close(chan);
+		return FALSE;
+	}
+
+	PCE_HandleInput(pce, 0);
+
+	return TRUE;
+}
+
+
 int main(int argc, char *argv[])
 {
 	pce_t *pce;
@@ -257,7 +275,7 @@ int main(int argc, char *argv[])
 	io = g_io_channel_unix_new(fd);
 	g_io_add_watch_full(io, G_PRIORITY_DEFAULT,
 			G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
-			PCE_Watch_cb, pce,
+			Watch_cb, pce,
 			(GDestroyNotify) PCE_Cleanup);
 	g_io_channel_unref(io);
 

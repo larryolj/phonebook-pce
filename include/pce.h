@@ -56,9 +56,9 @@ pce_query_t *PCE_Query_New(const char *name);
 
 void PCE_Query_Free(pce_query_t *query);
 
-gboolean PCE_Watch_cb(GIOChannel *chan, GIOCondition cond, void *data);
-
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
+
+int PCE_HandleInput(pce_t *pce, int timeout);
 
 int PCE_Get_FD(pce_t *pce);
 
