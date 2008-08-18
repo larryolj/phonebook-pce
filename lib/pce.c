@@ -144,7 +144,7 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 }
 
 static obex_object_t *obex_obj_init(pce_t *pce, const char *name,
-			const char *type)
+				const char *type)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -370,7 +370,8 @@ int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
 		/* parent folder */
 		nohdr_data[0] |= 1;
 	} else if (strcmp(name, "/") != 0) {
-		uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+		uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name,
+						sizeof(uname));
 		hd.bs = uname;
 	}
 
@@ -420,7 +421,8 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func)
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[19]);
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd,
+						sizeof(app), 0);
 
 	pce->func = func;
 
@@ -519,7 +521,8 @@ int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, pce_cb_t func)
 	app[12]	= query->format;
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, sizeof(app), 0);
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM,
+						hd, sizeof(app), 0);
 
 	pce->func = func;
 
