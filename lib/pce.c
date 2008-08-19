@@ -140,7 +140,6 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
 		debug("PhoneBook Size %d", size);
 	}
-
 }
 
 static obex_object_t *obex_obj_init(pce_t *pce, const char *name,

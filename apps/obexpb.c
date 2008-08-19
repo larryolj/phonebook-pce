@@ -60,9 +60,9 @@ static void pce_done_cb(pce_t *pce, int rsp, char *buf)
 static void set_path_done(pce_t *pce, int rsp, char *buf)
 {
 	if (rsp == OBEX_RSP_SUCCESS)
-		printf("set parh donen\n");
+		printf("set path donen\n");
 	else
-		printf("set parh failed\n");
+		printf("set path failed\n");
 	client_input(pce);
 }
 
@@ -217,7 +217,7 @@ static void client_input(pce_t *pce)
 	}
 }
 
-gboolean Watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
+static gboolean watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
 {
 	pce_t *pce = data;
 
@@ -237,23 +237,11 @@ gboolean Watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
 
 int main(int argc, char *argv[])
 {
-	pce_t *pce;
 	GIOChannel *io;
-	uint8_t channel;
+	pce_t *pce;
 	struct sigaction sa;
 	int fd;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_flags = SA_NOCLDSTOP;
-	sa.sa_handler = sig_term;
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGINT, &sa, NULL);
-
-	sa.sa_handler = SIG_IGN;
-	sigaction(SIGCHLD, &sa, NULL);
-	sigaction(SIGPIPE, &sa, NULL);
-
-	main_loop = g_main_loop_new(NULL, FALSE);
+	uint8_t channel;
 
 	if (argc < 2) {
 		printf("Bluetooth Address missing\nobexpb <address> [<channel>]\n");
@@ -265,24 +253,37 @@ int main(int argc, char *argv[])
 	else
 		channel = PBAP_PCE_CHANNEL;
 
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_flags = SA_NOCLDSTOP;
+	sa.sa_handler = sig_term;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGCHLD, &sa, NULL);
+	sigaction(SIGPIPE, &sa, NULL);
+
 	pce = PCE_Init(argv[1], channel);
 	if (!pce) {
 		printf("Dont initialize PCE\n");
 		exit(EXIT_FAILURE);
 	}
 
+	main_loop = g_main_loop_new(NULL, FALSE);
+
 	fd = PCE_Get_FD(pce);
 	io = g_io_channel_unix_new(fd);
 	g_io_add_watch_full(io, G_PRIORITY_DEFAULT,
 			G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
-			Watch_cb, pce,
+			watch_cb, pce,
 			(GDestroyNotify) PCE_Cleanup);
 	g_io_channel_unref(io);
-
 
 	PCE_Connect(pce, connect_done);
 
 	g_main_loop_run(main_loop);
+
+	g_main_loop_unref(main_loop);
 
 	printf("Exit\n");
 
