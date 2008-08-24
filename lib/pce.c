@@ -397,7 +397,7 @@ int PCE_Connect(pce_t *self, void * data)
 	return request(self, obj, data);
 }
 
-int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
+int PCE_Set_PB(pce_t *self, char *name, void * data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -405,15 +405,15 @@ int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
 	uint8_t nohdr_data[2] = { 0x02, 0x00};
 	int uname_len = 0;
 
-	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_SETPATH);
+	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_SETPATH);
 	if (!obj) {
 		debug("Error Creating Object (Set Phonebook)");
 		return -1;
 	}
 
 	memset(&hd, 0, sizeof(hd));
-	hd.bq4 = pce->connection_id;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
+	hd.bq4 = self->connection_id;
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
 	/* FIXME: correct check bad string */
@@ -426,32 +426,26 @@ int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
 		hd.bs = uname;
 	}
 
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_NAME,
 			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	OBEX_ObjectSetNonHdrData(obj, nohdr_data, 2);
 
-	pce->func = func;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return 0;
+	return request(self, obj, data);
 }
 
-int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func)
+int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t app[21];
 
-	if (!pce || !pce->obex || !pce->connection_id) {
+	if (!self || !self->obex || !self->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce, query->name, XOBEX_BT_PHONEBOOK);
+	obj = obex_obj_init(self, query->name, XOBEX_BT_PHONEBOOK);
 	if (!obj) {
 		debug("Error Creating Object (Pull PhoneBook)");
 		return -1;
@@ -472,31 +466,24 @@ int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func)
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[19]);
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd,
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM, hd,
 						sizeof(app), 0);
-
-	pce->func = func;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return 0;
+	return request(self, obj, data);
 }
 
-int PCE_VCard_List(pce_t *pce, pce_query_t *query, pce_cb_t func)
+int PCE_VCard_List(pce_t *self, pce_query_t *query, void * data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t *app;
 	int search_len, app_len;
 
-	if (!pce || !pce->obex || !pce->connection_id) {
+	if (!self || !self->obex || !self->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARDLIST);
+	obj = obex_obj_init(self, query->name, XOBEX_BT_VCARDLIST);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard List)");
 		return -1;
@@ -533,31 +520,26 @@ int PCE_VCard_List(pce_t *pce, pce_query_t *query, pce_cb_t func)
 	}
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd, app_len, 0);
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM, hd,
+					app_len, 0);
 
 	free(app);
 
-	pce->func = func;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return 0;
+	return request(self, obj, data);
 }
 
-int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, pce_cb_t func)
+int PCE_VCard_Entry(pce_t *self, pce_query_t *query, void * data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t app[13];
 
-	if (!pce || !pce->obex || !pce->connection_id) {
+	if (!self || !self->obex || !self->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARD);
+	obj = obex_obj_init(self, query->name, XOBEX_BT_VCARD);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard Entry)");
 		return -1;
@@ -572,14 +554,8 @@ int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, pce_cb_t func)
 	app[12]	= query->format;
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM,
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM,
 						hd, sizeof(app), 0);
 
-	pce->func = func;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return 0;
+	return request(self, obj, data);
 }
