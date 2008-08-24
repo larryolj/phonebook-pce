@@ -292,7 +292,10 @@ pce_query_t *PCE_Query_New(const char *name)
 {
 	pce_query_t *query;
 
-	query = g_new0(pce_query_t, 1);
+	query = malloc(sizeof(pce_query_t));
+	if (query == NULL)
+		return NULL;
+	memset(query, 0, sizeof(pce_query_t));
 	if (name)
 		query->name = strdup(name);
 	else
