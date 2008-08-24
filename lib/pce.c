@@ -106,7 +106,7 @@ static void debug(const char *format, ...)
 	free(msg);
 }
 
-static void connect_done(pce_t *pce, obex_object_t *obj)
+static void connect_done(pce_t *self, obex_object_t *obj)
 {
 	obex_connect_hdr_t *nonhdr;
 	obex_headerdata_t hd;
@@ -126,39 +126,42 @@ static void connect_done(pce_t *pce, obex_object_t *obj)
 	debug("Version: 0x%02x. Flags: 0x%02x  OBEX packet length: %d",
 			nonhdr->version, nonhdr->flags, mtu);
 
-	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen))
+	while (OBEX_ObjectGetNextHeader(self->obex, obj, &hi, &hd, &hlen))
 		if (hi == OBEX_HDR_CONNECTION)
-			pce->connection_id = hd.bq4;
+			self->connection_id = hd.bq4;
 
 	debug("Connect OK!");
 }
 
-static void get_done(pce_t *pce, obex_object_t *obj)
+static void get_done(pce_t *self, obex_object_t *obj, pce_rsp_t *pce_rsp)
 {
 	obex_headerdata_t hd;
-	uint32_t app_len;
 	uint8_t hi, *app = NULL;
 	unsigned int hlen;
 
 	debug("Get Done");
 
-	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen)) {
+	while (OBEX_ObjectGetNextHeader(self->obex, obj, &hi, &hd, &hlen)) {
 		switch(hi) {
 		case OBEX_HDR_BODY:
-
+			pce_rsp->rsp_id = 0x02;
 			if (hlen == 0) {
-				pce->buf = g_strdup("");
+				pce_rsp->rsp = strdup("");
 				break;
 			}
 
-			pce->buf = g_strdup((char *) hd.bs);
-			//pce->buf = malloc(hlen +1);
-			//strncpy((char *) pce->buf, (char *) hd.bs, hlen);
+			pce_rsp->len = hlen + 1;
+			pce_rsp->rsp = malloc(hlen + 1);
+			memset(pce_rsp->rsp, 0, pce_rsp->len);
+			if (pce_rsp->rsp == NULL) {
+				debug("Out of memory");
+				break;
+			}
+			memcpy(pce_rsp->rsp, hd.bs, hlen);
 			break;
 		case OBEX_HDR_APPARAM:
 			app = malloc(hlen);
 			memcpy(app, hd.bs, hlen);
-			app_len = hlen;
 			break;
 		}
 	}
@@ -166,12 +169,17 @@ static void get_done(pce_t *pce, obex_object_t *obj)
 	if (app && app[0] == 0x08) {
 		uint16_t size;
 
+		pce_rsp->rsp_id = 0x01;
+		pce_rsp->len = sizeof(uint16_t);
+		pce_rsp->rsp = malloc(pce_rsp->len);
 		size = ntohs(bt_get_unaligned((uint16_t *) &app[2]));
+		memcpy(pce_rsp->rsp, &size, pce_rsp->len);
 		debug("PhoneBook Size %d", size);
+		free(app);
 	}
 }
 
-static obex_object_t *obex_obj_init(pce_t *pce, const char *name,
+static obex_object_t *obex_obj_init(pce_t *self, const char *name,
 				const char *type)
 {
 	obex_object_t *obj;
