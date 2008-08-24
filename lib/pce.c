@@ -187,53 +187,64 @@ static obex_object_t *obex_obj_init(pce_t *self, const char *name,
 	uint8_t uname[200];
 	int uname_len;
 
-	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_GET);
+	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_GET);
 	if (!obj)
 		return NULL;
 
-	hd.bq4 = pce->connection_id;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
+	hd.bq4 = self->connection_id;
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
-	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name, sizeof(uname));
+	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name,
+					sizeof(uname));
 	hd.bs = uname;
 
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_NAME,
 			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	hd.bs = (uint8_t *) type;
-	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TYPE,
+	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_TYPE,
 			hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
 
 	return obj;
 }
 
-static void pce_req_done(pce_t *pce, obex_object_t *obj, int cmd)
+static void pce_req_done(pce_t *self, obex_object_t *obj, int cmd,
+				pce_rsp_t *pce_rsp)
 {
 	switch(cmd) {
 	case OBEX_CMD_CONNECT:
-		connect_done(pce, obj);
+		connect_done(self, obj);
 		break;
 	case OBEX_CMD_DISCONNECT:
 		debug("Disconnected!");
-		OBEX_TransportDisconnect(pce->obex);
-		pce->connection_id = 0;
+		OBEX_TransportDisconnect(self->obex);
+		self->connection_id = 0;
 		break;
 	case OBEX_CMD_GET:
-		get_done(pce, obj);
+		get_done(self, obj, pce_rsp);
 		break;
 	case OBEX_CMD_SETPATH:
 		break;
 	}
 }
 
+static void rsp_cleanup(pce_rsp_t *pce_rsp)
+{
+	if ( pce_rsp == NULL)
+		return;
+	if (pce_rsp->rsp != NULL)
+		free(pce_rsp->rsp);
+	free(pce_rsp);
+}
+
 static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 			int evt, int cmd, int rsp)
 {
-	pce_t *pce;
-	pce_cb_t func;
+	pce_t *self;
+	pce_rsp_t *pce_rsp;
 
-	pce = OBEX_GetUserData(obex);
+	self = OBEX_GetUserData(obex);
 	debug("event(0x%02x)/command(0x%02x)", evt, cmd);
 
 	switch(evt) {
@@ -244,26 +255,36 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	case OBEX_EV_LINKERR:
 		break;
 	case OBEX_EV_REQDONE:
-		if (rsp != OBEX_RSP_SUCCESS) {
-			debug("Command failed!/response(0x%02x)", rsp);
-			break;
+		pce_rsp = malloc(sizeof(pce_rsp_t));
+		if (pce_rsp != NULL) {
+			memset(pce_rsp, 0, sizeof(pce_rsp_t));
+			pce_rsp->obex_rsp = rsp;
 		}
-		pce_req_done(pce, obj, cmd);
+		if (rsp == OBEX_RSP_SUCCESS)
+			pce_req_done(self, obj, cmd, pce_rsp);
+		self->event_cb(self, pce_rsp, self->userdata);
+		rsp_cleanup(pce_rsp);
 		break;
 	default:
 		break;
 	}
-
-	if (pce->func) {
-		func = (pce_cb_t) pce->func;
-		func(pce, rsp, pce->buf);
-	}
 }
 
-int PCE_HandleInput(pce_t *pce, int timeout)
+static int request(pce_t *self, obex_object_t *obj, void *userdata)
 {
-	if (pce)
-		return OBEX_HandleInput(pce->obex, timeout);
+	self->userdata = userdata;
+
+	OBEX_SetUserData(self->obex, self);
+
+	OBEX_Request(self->obex, obj);
+
+	return 0;
+}
+
+int PCE_HandleInput(pce_t *self, int timeout)
+{
+	if (self)
+		return OBEX_HandleInput(self->obex, timeout);
 	return -1;
 }
 
