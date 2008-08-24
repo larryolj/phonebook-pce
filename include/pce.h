@@ -30,14 +30,11 @@
 #define PBAP_SEARCHATTR_NAME 0x00
 #define PBAP_SEARCHATTR_NUMBER 0x01
 #define PBAP_SEARCHATTR_SOUND 0x02
+#define PBAP_RSP_NONE 0x00
+#define PBAP_RSP_SIZE 0x01
+#define PBAP_RSP_BUFF 0x02
 
-typedef struct {
-	uint32_t 	connection_id;
-	obex_t 		*obex;
-	char		*buf;
-	uint16_t	size;
-	void		(*func);
-} pce_t;
+typedef void *pce_t;
 
 typedef struct {
 	char		*name;
@@ -50,28 +47,35 @@ typedef struct {
 	uint8_t		format;
 } pce_query_t;
 
-typedef void (*pce_cb_t)(pce_t *pce, int obex_rsp, char *buf);
+typedef struct {
+	int		obex_rsp;
+	int		rsp_id;
+	int		len;
+	void		*rsp;
+} pce_rsp_t;
+
+typedef void (*pce_cb_t)(pce_t *self, pce_rsp_t *rsp, void * data);
 
 pce_query_t *PCE_Query_New(const char *name);
 
 void PCE_Query_Free(pce_query_t *query);
 
-pce_t *PCE_Init(const char *bdaddr, uint8_t channel);
+pce_t *PCE_Init(const char *bdaddr, uint8_t channel, pce_cb_t event_cb);
 
-int PCE_HandleInput(pce_t *pce, int timeout);
+int PCE_HandleInput(pce_t *self, int timeout);
 
-int PCE_Get_FD(pce_t *pce);
+int PCE_Get_FD(pce_t *self);
 
-void PCE_Cleanup(pce_t *pce);
+void PCE_Cleanup(pce_t *self);
 
-int PCE_Disconnect(pce_t *pce);
+int PCE_Disconnect(pce_t *self, void * data);
 
-int PCE_Connect(pce_t *pce, pce_cb_t func);
+int PCE_Connect(pce_t *self, void * data);
 
-int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func);
+int PCE_Set_PB(pce_t *self, char *name, void * data);
 
-int PCE_Pull_PB(pce_t *pce, pce_query_t *query, pce_cb_t func);
+int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data);
 
-int PCE_VCard_List(pce_t *pce, pce_query_t  *query,  pce_cb_t func);
+int PCE_VCard_List(pce_t *self, pce_query_t  *query,  void * data);
 
-int PCE_VCard_Entry(pce_t *pce, pce_query_t  *query, pce_cb_t func);
+int PCE_VCard_Entry(pce_t *self, pce_query_t  *query, void * data);
