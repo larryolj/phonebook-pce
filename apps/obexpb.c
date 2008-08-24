@@ -101,7 +101,7 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 		printf("Size of phonebook %d\n", size);
 		break;
 	case PBAP_RSP_BUFF:
-		printf("%s\n", rsp->rsp);
+		printf("%s\n", (const char *) rsp->rsp);
 		break;
 	}
 	client_input(pce);
