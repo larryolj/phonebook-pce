@@ -1,0 +1,8 @@
+Lib PhoneBook Client Acces API Descripton
+*********************************************
+
+Copyright (C) 2008  Larry Junior <larry.olj@gmail.com>
+
+Descript Functions
+
+
