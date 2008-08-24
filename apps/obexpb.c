@@ -51,9 +51,59 @@ static void client_help()
 		"'q' - quit program\n");
 }
 
-static void pce_done_cb(pce_t *pce, int rsp, char *buf)
+static char *input_pb(const char *format)
 {
-	printf("pce-done\n%s", buf);
+	char cmd[10];
+	char *name;
+	printf("choice Phonebook:\n"\
+		"'p' - Phonebook\n"\
+		"'i' - Incommin calls\n"\
+		"'o' - Outcommin calls\n"\
+		"'m' - Missed calls\n"\
+		"'c' - Combined calls\n"\
+		">> ");
+	scanf("%s", cmd);
+
+	switch (cmd[0] | 0x20) {
+	case 'i':
+		name = g_strdup_printf(format, "ich");
+		break;
+	case 'o':
+		name = g_strdup_printf(format, "och");
+		break;
+	case 'm':
+		name = g_strdup_printf(format,"mch");
+		break;
+	case 'c':
+		name = g_strdup_printf(format,"cch");
+		break;
+	default:
+		name = g_strdup_printf(format,"pb");
+		break;
+	}
+
+	return name;
+}
+
+
+
+static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
+{
+	uint16_t size;
+
+	printf("obexpb done: response (0x%02x)\n", rsp->obex_rsp);
+	switch (rsp->rsp_id) {
+	case PBAP_RSP_NONE:
+		printf("None data received\n");
+		break;
+	case PBAP_RSP_SIZE:
+		memcpy(&size, rsp->rsp, sizeof(uint16_t));
+		printf("Size of phonebook %d\n", size);
+		break;
+	case PBAP_RSP_BUFF:
+		printf("%s\n", rsp->rsp);
+		break;
+	}
 	client_input(pce);
 }
 
