@@ -216,53 +216,39 @@ static void client_input(pce_t *pce)
 		run = 0;
 		switch (cmd[0] | 0x20) {
 		case 'c':
-			if (PCE_Connect(pce, connect_done) < 0)
+			if (PCE_Connect(pce, connect_done) < 0) {
 				printf ("Dont Connect to PSE \n");
+				run = 1;
+			}
 			break;
 		case 'p':
-			if (pce->connection_id) {
-				pull_phonebook(pce, 0xffff);
-				break;
-			}
-		case 'l':
-			if (pce->connection_id) {
-				pull_vcard_list(pce);
-				break;
-			}
-		case 'e':
-			if (pce->connection_id) {
-				pull_vcard_entry(pce);
-				break;
-			}
-		case 'n':
-			if (pce->connection_id) {
-				pull_phonebook(pce, 0x0);
-				break;
-			}
-		case 's':
-			if (pce->connection_id) {
-				set_phonebook(pce);
-				break;
-			}
-		case 'd':
-			if (pce->connection_id) {
-				PCE_Disconnect(pce);
-				break;
-			}
-			printf("Not Connected\n");
-			run = 1;
+			pull_phonebook(pce, 0xffff);
 			break;
-		case 'h':
-			client_help();
+		case 'l':
+			pull_vcard_list(pce);
+			break;
+		case 'e':
+			pull_vcard_entry(pce);
+			break;
+		case 'n':
+			pull_phonebook(pce, 0x0);
+			break;
+		case 's':
+			set_phonebook(pce);
+			break;
+		case 'd':
+			PCE_Disconnect(pce, NULL);
 			run = 1;
 			break;
 		case 'q':
 			g_main_loop_quit(main_loop);
 			break;
 		default:
-			client_help();
-			run = 1;
 			printf("Command not found!\n");
+		case 'h':
+			run = 1;
+			client_help();
+			break;
 		}
 	}
 }
