@@ -316,11 +316,10 @@ void PCE_Query_Free(pce_query_t *query)
 	}
 }
 
-pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
-
+pce_t *PCE_Init(const char *bdaddr, uint8_t channel, pce_cb_t event_cb)
 {
 	obex_t *obex = NULL;
-	pce_t *pce;
+	pce_t *self;
 	bdaddr_t bd;
 
 	str2ba(bdaddr, &bd);
@@ -341,59 +340,61 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel)
 		return NULL;
 	}
 
-	pce = g_new0(pce_t, 1);
-	pce->obex = obex;
-	pce->func = NULL;
-	return pce;
+	self = malloc(sizeof(pce_t));
+	if (self == NULL)
+		return NULL;
+
+	memset(self, 0, sizeof(pce_t));
+	self->obex = obex;
+	self->event_cb = event_cb;
+
+	return self;
 }
 
-int PCE_Get_FD(pce_t *pce)
+int PCE_Get_FD(pce_t *self)
 {
-	if (pce)
-		return OBEX_GetFD(pce->obex);
+	if (self)
+		return OBEX_GetFD(self->obex);
 	return -1;
 }
 
-void PCE_Cleanup(pce_t *pce)
+void PCE_Cleanup(pce_t *self)
 {
-	OBEX_Cleanup(pce->obex);
-	free(pce);
+	if (self) {
+		OBEX_Cleanup(self->obex);
+		free(self);
+	}
 }
 
-int PCE_Disconnect(pce_t *pce)
+int PCE_Disconnect(pce_t *self, void * data)
 {
 	debug("Disconnected!");
-	OBEX_TransportDisconnect(pce->obex);
-	pce->connection_id = 0;
+	OBEX_TransportDisconnect(self->obex);
+	self->connection_id = 0;
+	//TODO: call done
 	return 0;
 }
 
-int PCE_Connect(pce_t *pce, pce_cb_t func)
+int PCE_Connect(pce_t *self, void * data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 
-	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_CONNECT);
+	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_CONNECT);
 	if (!obj) {
 		debug("Error creating object");
 		return -1;
 	}
 
 	hd.bs = PBAP_PCE_UUID;
-	if (OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TARGET, hd,
+	if (OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_TARGET, hd,
 			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
 		debug("Error adding header");
-		OBEX_ObjectDelete(pce->obex, obj);
+		OBEX_ObjectDelete(self->obex, obj);
 		return -1;
 	}
 
-	pce->func = func;
-
-	OBEX_SetUserData(pce->obex, pce);
-
-	OBEX_Request(pce->obex, obj);
-
-	return 0;
+	return request(self, obj, data);
 }
 
 int PCE_Set_PB(pce_t *pce, char *name, pce_cb_t func)
