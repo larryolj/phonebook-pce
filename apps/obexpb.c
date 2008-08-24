@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
 	sigaction(SIGCHLD, &sa, NULL);
 	sigaction(SIGPIPE, &sa, NULL);
 
-	pce = PCE_Init(argv[1], channel);
+	pce = PCE_Init(argv[1], channel, event_done);
 	if (!pce) {
 		printf("Dont initialize PCE\n");
 		exit(EXIT_FAILURE);
