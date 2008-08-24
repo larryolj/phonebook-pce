@@ -1,0 +1,23 @@
+Lib PhoneBook Client Acces API Descripton
+*********************************************
+
+Copyright (C) 2008  Larry Junior <larry.olj@gmail.com>
+
+Phonebook Client Libraries
+
+Compilation and installation
+============================
+
+depends:
+	- BlueZ
+	- OpenObex
+	- Glib
+
+To configure run:
+	./bootstrap && ./bootstrap-configure --prefix=/usr
+
+Configure automatically searches for all required components and packages.
+
+To compile and install run:
+	make && make install
+
