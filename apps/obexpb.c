@@ -139,19 +139,19 @@ static int set_phonebook(pce_t *pce)
 static int pull_vcard_list(pce_t *pce)
 {
 	pce_query_t *query;
-	char name[200];
+	char *name;
 	char search[180];
 
-	printf("Insert folder name\n>> ");
-	scanf("%s", name);
+	name = input_pb("%s");
 
-	printf("Insert search value\n>> ");
+	printf("Insert search value in %s\n>> ", name);
 	scanf("%s", search);
 
 	query = PCE_Query_New((const char *) name);
+	free(name);
 	query->search = strdup(search);
 
-	if (PCE_VCard_List(pce, query, pce_done_cb) < 0) {
+	if (PCE_VCard_List(pce, query, NULL) < 0) {
 		printf("Pull vcard error\n");
 		return -1;
 	}
@@ -164,15 +164,15 @@ static int pull_vcard_list(pce_t *pce)
 static int pull_phonebook(pce_t *pce, uint16_t maxlist)
 {
 	pce_query_t *query;
-	char name[200];
+	char *name;
 
-	printf("Insert Phonebook name\n>> ");
-	scanf("%s", name);
+	name = input_pb("telecom/%s");
 
-	query = PCE_Query_New((const char *) name);
+	query = PCE_Query_New(name);
+	free(name);
 	query->maxlist = maxlist;
 
-	if (PCE_Pull_PB(pce, query, pce_done_cb) < 0) {
+	if (PCE_Pull_PB(pce, query, NULL) < 0) {
 		printf("Pull pb error\n");
 		return -1;
 	}
@@ -195,7 +195,7 @@ static int pull_vcard_entry(pce_t *pce)
 	query = PCE_Query_New((const char *) uname);
 	free(uname);
 
-	if (PCE_VCard_Entry(pce, query, pce_done_cb) < 0) {
+	if (PCE_VCard_Entry(pce, query, NULL) < 0) {
 		printf("Pull entry error\n");
 		return -1;
 	}
