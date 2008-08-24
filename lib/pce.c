@@ -26,7 +26,7 @@
 
 #include <bluetooth/bluetooth.h>
 #include <arpa/inet.h>
-#include "pce.h"
+#include <openobex/obex.h>
 
 #define XOBEX_BT_PHONEBOOK	"x-bt/phonebook"
 #define XOBEX_BT_VCARD		"x-bt/vcard"
@@ -56,11 +56,42 @@
 		0xf0, 0xc5, 0x11, 0xd8, 0x09, 0x66, \
 		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 })
 
+typedef struct pce pce_t;
+
 typedef struct {
-    guint8	version;
-    guint8	flags;
-    guint16	mtu;
+	uint8_t		version;
+	uint8_t		flags;
+	uint16_t	mtu;
 } __attribute__ ((packed)) obex_connect_hdr_t;
+
+/* FIXME: pce_query_t and pce_rsp_t Redefined in obex.h */
+typedef struct {
+	char		*name;
+	char		*search;
+	uint64_t	filter;
+	uint16_t	maxlist;
+	uint16_t	offset;
+	uint8_t		search_attr;
+	uint8_t		order;
+	uint8_t		format;
+} pce_query_t;
+
+typedef struct {
+	int		obex_rsp;
+	int		rsp_id;
+	int		len;
+	void		*rsp;
+} pce_rsp_t;
+
+typedef void (*pce_cb_t)(pce_t *self, pce_rsp_t *rsp, void * data);
+
+struct pce {
+	pce_cb_t	event_cb;
+	obex_t		*obex;
+	void		*userdata;
+	pce_rsp_t	*rsp;
+	uint32_t	connection_id;
+};
 
 static void debug(const char *format, ...)
 {
@@ -68,9 +99,7 @@ static void debug(const char *format, ...)
 	char *msg;
 
 	va_start(ap, format);
-
 	vasprintf(&msg, format, ap);
-
 	va_end(ap);
 
 	printf("[PCE] %s\n", msg);
@@ -83,7 +112,7 @@ static void connect_done(pce_t *pce, obex_object_t *obj)
 	obex_headerdata_t hd;
 	uint8_t *buffer;
 	uint8_t hi;
-	guint16 mtu;
+	uint16_t mtu;
 	unsigned int hlen;
 
 	if (OBEX_ObjectGetNonHdrData(obj, &buffer) != sizeof(*nonhdr)) {
