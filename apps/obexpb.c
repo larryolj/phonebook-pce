@@ -33,6 +33,28 @@ static GMainLoop *main_loop;
 
 static void client_input(pce_t *pce);
 
+static void start_element_handler(GMarkupParseContext *context,
+		const gchar *element_name, const gchar **attribute_names,
+		const gchar **attribute_values, gpointer user_data, GError **error)
+{
+	printf("element name %s\n", element_name);
+
+}
+
+static void error_handler (GMarkupParseContext *context, GError *error,
+							gpointer user_data)
+{
+	fprintf (stderr, " %s\n", error->message);
+}
+
+static const GMarkupParser parser = {
+	start_element_handler,
+	NULL,
+	NULL,
+	NULL,
+	error_handler
+};
+
 static void sig_term(int sig)
 {
 	g_main_loop_quit(main_loop);
@@ -85,11 +107,27 @@ static char *input_pb(const char *format)
 	return name;
 }
 
+static void xml_list_parse(const char *xml, ssize_t len)
+{
+	GMarkupParseContext *p_context;
 
+	p_context = g_markup_parse_context_new(&parser, G_MARKUP_DO_NOT_USE_THIS_UNSUPPORTED_FLAG, NULL, NULL);
+	if (p_context == NULL) {
+		printf("Error in create context\n");
+		return;
+	}
+	g_markup_parse_context_parse(p_context, xml, len, NULL);
+}
 
 static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 {
 	uint16_t size;
+	int id = 0;
+
+	if (data) {
+		memcpy(&id, data, sizeof(int));
+		free(data);
+	}
 
 	printf("obexpb done: response (0x%02x)\n", rsp->obex_rsp);
 	switch (rsp->rsp_id) {
@@ -101,7 +139,10 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 		printf("Size of phonebook %d\n", size);
 		break;
 	case PBAP_RSP_BUFF:
-		printf("%s\n", (const char *) rsp->rsp);
+		if (id == 2)
+			xml_list_parse((const char *) rsp->rsp, rsp->len);
+		else
+			printf("%s\n", (const char *) rsp->rsp);
 		break;
 	}
 	client_input(pce);
@@ -141,6 +182,10 @@ static int pull_vcard_list(pce_t *pce)
 	pce_query_t *query;
 	char *name;
 	char search[180];
+	int *id;
+
+	id = malloc(sizeof(int));
+	*id = 2;
 
 	name = input_pb("%s");
 
@@ -151,7 +196,7 @@ static int pull_vcard_list(pce_t *pce)
 	free(name);
 	query->search = strdup(search);
 
-	if (PCE_VCard_List(pce, query, NULL) < 0) {
+	if (PCE_VCard_List(pce, query, id) < 0) {
 		printf("Pull vcard error\n");
 		return -1;
 	}
