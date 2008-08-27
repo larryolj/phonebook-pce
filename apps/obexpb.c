@@ -45,7 +45,6 @@ static void start_element_handler(GMarkupParseContext *context,
 {
 	int i;
 
-	printf("element name %s\n", element);
 	if (strcmp(element, "card") != 0)
 		return;
 
@@ -78,7 +77,7 @@ static void sig_term(int sig)
 	g_main_loop_quit(main_loop);
 }
 
-static void client_help()
+static void client_help(void)
 {
 	printf("'c' - Connect Phonebook\n"\
 		"'d' - Disconnect Phonebook\n"\
@@ -129,12 +128,15 @@ static void xml_list_parse(const char *xml, ssize_t len)
 {
 	GMarkupParseContext *p_context;
 
-	p_context = g_markup_parse_context_new(&parser, G_MARKUP_DO_NOT_USE_THIS_UNSUPPORTED_FLAG, NULL, NULL);
+	p_context = g_markup_parse_context_new(&parser,
+		G_MARKUP_DO_NOT_USE_THIS_UNSUPPORTED_FLAG, NULL, NULL);
 	if (p_context == NULL) {
 		printf("Error in create context\n");
 		return;
 	}
 	g_markup_parse_context_parse(p_context, xml, len, NULL);
+
+	g_free(p_context);
 }
 
 static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
@@ -163,16 +165,6 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 
 	if (data)
 		free(data);
-
-	client_input(pce);
-}
-
-static void connect_done(pce_t *pce, int rsp, char *buf)
-{
-	if (rsp == OBEX_RSP_SUCCESS)
-		printf("connect done\n");
-	else
-		printf("connect failed\n");
 
 	client_input(pce);
 }
@@ -271,7 +263,7 @@ static void client_input(pce_t *pce)
 		run = 0;
 		switch (cmd[0] | 0x20) {
 		case 'c':
-			if (PCE_Connect(pce, connect_done) < 0) {
+			if (PCE_Connect(pce, NULL) < 0) {
 				printf ("Dont Connect to PSE \n");
 				run = 1;
 			}
@@ -370,7 +362,7 @@ int main(int argc, char *argv[])
 			(GDestroyNotify) PCE_Cleanup);
 	g_io_channel_unref(io);
 
-	PCE_Connect(pce, connect_done);
+	PCE_Connect(pce, NULL);
 
 	folder = g_strdup("");
 
