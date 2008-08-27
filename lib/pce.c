@@ -150,8 +150,8 @@ static void get_done(pce_t *self, obex_object_t *obj, pce_rsp_t *pce_rsp)
 				break;
 			}
 
-			pce_rsp->len = hlen + 1;
-			pce_rsp->rsp = malloc(hlen + 1);
+			pce_rsp->len = hlen;
+			pce_rsp->rsp = malloc(hlen);
 			memset(pce_rsp->rsp, 0, pce_rsp->len);
 			if (pce_rsp->rsp == NULL) {
 				debug("Out of memory");
