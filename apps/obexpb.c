@@ -33,6 +33,12 @@ static GMainLoop *main_loop;
 
 static void client_input(pce_t *pce);
 
+static char *folder;
+
+typedef struct {
+	int	func_id;
+} session_t;
+
 static void start_element_handler(GMarkupParseContext *context,
 		const gchar *element_name, const gchar **attribute_names,
 		const gchar **attribute_values, gpointer user_data, GError **error)
@@ -57,6 +63,7 @@ static const GMarkupParser parser = {
 
 static void sig_term(int sig)
 {
+	free(folder);
 	g_main_loop_quit(main_loop);
 }
 
@@ -122,12 +129,9 @@ static void xml_list_parse(const char *xml, ssize_t len)
 static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 {
 	uint16_t size;
-	int id = 0;
+	session_t *s;
 
-	if (data) {
-		memcpy(&id, data, sizeof(int));
-		free(data);
-	}
+	s = (session_t *) data;
 
 	printf("obexpb done: response (0x%02x)\n", rsp->obex_rsp);
 	switch (rsp->rsp_id) {
@@ -139,21 +143,16 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 		printf("Size of phonebook %d\n", size);
 		break;
 	case PBAP_RSP_BUFF:
-		if (id == 2)
+		if (s && s->func_id == 2)
 			xml_list_parse((const char *) rsp->rsp, rsp->len);
 		else
 			printf("%s\n", (const char *) rsp->rsp);
 		break;
 	}
-	client_input(pce);
-}
 
-static void set_path_done(pce_t *pce, int rsp, char *buf)
-{
-	if (rsp == OBEX_RSP_SUCCESS)
-		printf("set path donen\n");
-	else
-		printf("set path failed\n");
+	if (data)
+		free(data);
+
 	client_input(pce);
 }
 
@@ -174,7 +173,7 @@ static int set_phonebook(pce_t *pce)
 	printf("Insert folder name, '..' for parent or '/' for root\n>> ");
 	scanf("%s", name);
 
-	return PCE_Set_PB(pce, name, set_path_done);
+	return PCE_Set_PB(pce, name, NULL);
 }
 
 static int pull_vcard_list(pce_t *pce)
@@ -182,10 +181,10 @@ static int pull_vcard_list(pce_t *pce)
 	pce_query_t *query;
 	char *name;
 	char search[180];
-	int *id;
+	session_t *s;
 
-	id = malloc(sizeof(int));
-	*id = 2;
+	s = malloc(sizeof(session_t));
+	s->func_id = 2;
 
 	name = input_pb("%s");
 
@@ -196,7 +195,7 @@ static int pull_vcard_list(pce_t *pce)
 	free(name);
 	query->search = strdup(search);
 
-	if (PCE_VCard_List(pce, query, id) < 0) {
+	if (PCE_VCard_List(pce, query, s) < 0) {
 		printf("Pull vcard error\n");
 		return -1;
 	}
@@ -361,6 +360,8 @@ int main(int argc, char *argv[])
 	g_io_channel_unref(io);
 
 	PCE_Connect(pce, connect_done);
+
+	folder = g_strdup("");
 
 	g_main_loop_run(main_loop);
 
