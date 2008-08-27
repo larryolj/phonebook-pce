@@ -40,11 +40,22 @@ typedef struct {
 } session_t;
 
 static void start_element_handler(GMarkupParseContext *context,
-		const gchar *element_name, const gchar **attribute_names,
-		const gchar **attribute_values, gpointer user_data, GError **error)
+		const gchar *element, const gchar **names,
+		const gchar **values, gpointer user_data, GError **error)
 {
-	printf("element name %s\n", element_name);
+	int i;
 
+	printf("element name %s\n", element);
+	if (strcmp(element, "card") != 0)
+		return;
+
+	i = 0;
+	while (names[i] != NULL) {
+		printf("%s: %s ", names[i], values[i]);
+		i++;
+	}
+
+	printf("\n");
 }
 
 static void error_handler (GMarkupParseContext *context, GError *error,
