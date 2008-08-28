@@ -143,6 +143,7 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 {
 	uint16_t size;
 	session_t *s;
+	char *vcard;
 
 	s = (session_t *) data;
 
@@ -156,10 +157,16 @@ static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
 		printf("Size of phonebook %d\n", size);
 		break;
 	case PBAP_RSP_BUFF:
-		if (s && s->func_id == 2)
+		if (s && s->func_id == 2) {
 			xml_list_parse((const char *) rsp->rsp, rsp->len);
-		else
+			break;
+		}
+		vcard = g_malloc0(rsp->len + 1);
+		if (vcard != NULL) {
+			strncpy(vcard, (const char *) rsp->rsp, rsp->len);
 			printf("%s\n", (const char *) rsp->rsp);
+			g_free(vcard);
+		}
 		break;
 	}
 
