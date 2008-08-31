@@ -98,10 +98,10 @@ static char *input_pb(const char *format)
 {
 	char cmd[10];
 	char *name;
-	printf("choice Phonebook:\n"\
+	printf("Phonebook object types:\n"\
 		"'p' - Phonebook\n"\
-		"'i' - Incommin calls\n"\
-		"'o' - Outcommin calls\n"\
+		"'i' - Incomming calls\n"\
+		"'o' - Outcomming calls\n"\
 		"'m' - Missed calls\n"\
 		"'c' - Combined calls\n"\
 		">> ");
