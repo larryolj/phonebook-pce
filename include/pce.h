@@ -50,7 +50,7 @@ typedef struct {
 typedef struct {
 	int		obex_rsp;
 	int		rsp_id;
-	int		len;
+	unsigned int	len;
 	void		*rsp;
 } pce_rsp_t;
 
@@ -79,3 +79,38 @@ int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data);
 int PCE_VCard_List(pce_t *self, pce_query_t  *query,  void * data);
 
 int PCE_VCard_Entry(pce_t *self, pce_query_t  *query, void * data);
+
+
+/* FILTER MASKS */
+
+#define FILTER_VERSION		0X01
+#define FILTER_FN		0X01 << 1
+#define FILTER_N		0X01 << 2
+#define FILTER_PHOTO		0X01 << 3
+#define FILTER_BDAY		0X01 << 4
+#define FILTER_ADR		0X01 << 5
+#define FILTER_LABEL		0X01 << 6
+#define FILTER_TEL		0X01 << 7
+#define FILTER_EMAIL		0x01 << 8
+#define FILTER_MAILER		0x01 << 9
+#define FILTER_TZ		0X01 << 10
+#define FILTER_GEO		0x01 << 11
+#define FILTER_TITLE		0x01 << 12
+#define FILTER_ROLE		0x01 << 13
+#define FILTER_AGENT		0x01 << 14
+#define FILTER_ORG		0x01 << 15
+#define FILTER_NOTE		0x01 << 16
+#define FILTER_REV		0x01 << 17
+#define FILTER_SOUND		0x01 << 18
+#define FILTER_URL		0x01 << 19
+#define FILTER_UID		0x01 << 20
+#define FILTER_KEY		0x01 << 21
+#define FILTER_NICKNAME		0x01 << 22
+#define FILTER_CATEGORIES	0x01 << 23
+#define FILTER_PROID		0x01 << 24
+#define FILTER_CLASS		0x01 << 25
+#define FILTER_SORT_STRING	0x01 << 26
+#define FILTER_X_IRMC_CDT	0x01 << 27
+
+#define FILTER_DEFAULT_21	(FILTER_VERSION | FILTER_FN | FILTER_N | FILTER_TEL)
+#define FILTER_DEFAULT_30	(FILTER_VERSION | FILTER_N | FILTER_TEL)
