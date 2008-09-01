@@ -341,7 +341,6 @@ int main(int argc, char *argv[])
 	struct sigaction sa;
 	GIOChannel *io;
 	pce_t *pce;
-	struct sigaction sa;
 	int fd;
 	uint8_t channel;
 
@@ -368,7 +367,7 @@ int main(int argc, char *argv[])
 	sigaction(SIGPIPE, &sa, NULL);
 
 	pce = PCE_Init(argv[1], channel, event_done);
-	if (!pce) {
+	if (!pce)
 		printf("Can't initialize PCE!\n");
 	printf("Obex DEBUG: \n");
 
@@ -395,10 +394,6 @@ int main(int argc, char *argv[])
 	folder = g_strdup("");
 
 	init(argc, argv);
-
-	//g_main_loop_run(main_loop);
-
-	//g_main_loop_unref(main_loop);
 
 	printf("Exit\n");
 
