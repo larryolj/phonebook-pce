@@ -18,6 +18,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -57,7 +61,7 @@ static void start_element_handler(GMarkupParseContext *context,
 	printf("\n");
 }
 
-static void error_handler (GMarkupParseContext *context, GError *error,
+static void error_handler(GMarkupParseContext *context, GError *error,
 							gpointer user_data)
 {
 	fprintf (stderr, " %s\n", error->message);
@@ -94,10 +98,10 @@ static char *input_pb(const char *format)
 {
 	char cmd[10];
 	char *name;
-	printf("choice Phonebook:\n"\
+	printf("Phonebook object types:\n"\
 		"'p' - Phonebook\n"\
-		"'i' - Incommin calls\n"\
-		"'o' - Outcommin calls\n"\
+		"'i' - Incomming calls\n"\
+		"'o' - Outcomming calls\n"\
 		"'m' - Missed calls\n"\
 		"'c' - Combined calls\n"\
 		">> ");
@@ -134,12 +138,13 @@ static void xml_list_parse(const char *xml, ssize_t len)
 		printf("Error in create context\n");
 		return;
 	}
+
 	g_markup_parse_context_parse(p_context, xml, len, NULL);
 
 	g_free(p_context);
 }
 
-static void event_done(pce_t *pce, pce_rsp_t *rsp, void * data)
+static void event_done(pce_t *pce, pce_rsp_t *rsp, void *data)
 {
 	uint16_t size;
 	session_t *s;
@@ -189,9 +194,9 @@ static int set_phonebook(pce_t *pce)
 static int pull_vcard_list(pce_t *pce)
 {
 	pce_query_t *query;
+	session_t *s;
 	char *name;
 	char search[180];
-	session_t *s;
 
 	s = malloc(sizeof(session_t));
 	s->func_id = 2;
@@ -324,17 +329,18 @@ static gboolean watch_cb(GIOChannel *chan, GIOCondition cond, void *data)
 	return TRUE;
 }
 
-
 int main(int argc, char *argv[])
 {
+	struct sigaction sa;
 	GIOChannel *io;
 	pce_t *pce;
-	struct sigaction sa;
 	int fd;
 	uint8_t channel;
 
+	printf("PBAP client - version %s\n", VERSION);
+
 	if (argc < 2) {
-		printf("Bluetooth Address missing\nobexpb <address> [<channel>]\n");
+		printf("Bluetooth Address missing!\nobexpb <address> [<channel>]\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -355,7 +361,7 @@ int main(int argc, char *argv[])
 
 	pce = PCE_Init(argv[1], channel, event_done);
 	if (!pce) {
-		printf("Dont initialize PCE\n");
+		printf("Can't initialize PCE!\n");
 		exit(EXIT_FAILURE);
 	}
 

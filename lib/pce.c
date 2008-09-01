@@ -39,8 +39,8 @@
 #define PBAP_APP_LISTOFFSET_ID		0x05
 #define PBAP_APP_FILTER_ID		0x06
 #define PBAP_APP_FORMAT_ID		0x07
-#define PBAP_APP_PBSIZE_ID		0x08
-#define PBAP_APP_MISS_CALL_ID		0x09
+#define PBAP_APP_PBSIZE_ID		0x08 /* FIXME: never used! Feature not implemented ou useless? */
+#define PBAP_APP_MISS_CALL_ID		0x09 /* FIXME: never used! Feature not implemented ou useless? */
 
 #define PBAP_APP_ORDER_SIZE		0x01
 #define PBAP_APP_SEARCH_ATT_SIZE	0x01
@@ -117,7 +117,7 @@ typedef struct {
 	void		*rsp;
 } pce_rsp_t;
 
-typedef void (*pce_cb_t)(pce_t *self, pce_rsp_t *rsp, void * data);
+typedef void (*pce_cb_t)(pce_t *pce, pce_rsp_t *rsp, void * data);
 
 struct pce {
 	pce_cb_t	event_cb;
@@ -140,7 +140,7 @@ static void debug(const char *format, ...)
 	free(msg);
 }
 
-static void connect_done(pce_t *self, obex_object_t *obj)
+static void connect_done(pce_t *pce, obex_object_t *obj)
 {
 	obex_connect_hdr_t *nonhdr;
 	obex_headerdata_t hd;
@@ -160,14 +160,14 @@ static void connect_done(pce_t *self, obex_object_t *obj)
 	debug("Version: 0x%02x. Flags: 0x%02x  OBEX packet length: %d",
 			nonhdr->version, nonhdr->flags, mtu);
 
-	while (OBEX_ObjectGetNextHeader(self->obex, obj, &hi, &hd, &hlen))
+	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen))
 		if (hi == OBEX_HDR_CONNECTION)
-			self->connection_id = hd.bq4;
+			pce->connection_id = hd.bq4;
 
 	debug("Connect OK!");
 }
 
-static void get_done(pce_t *self, obex_object_t *obj, pce_rsp_t *pce_rsp)
+static void get_done(pce_t *pce, obex_object_t *obj, pce_rsp_t *pce_rsp)
 {
 	obex_headerdata_t hd;
 	uint8_t hi, *app = NULL;
@@ -175,7 +175,7 @@ static void get_done(pce_t *self, obex_object_t *obj, pce_rsp_t *pce_rsp)
 
 	debug("Get Done");
 
-	while (OBEX_ObjectGetNextHeader(self->obex, obj, &hi, &hd, &hlen)) {
+	while (OBEX_ObjectGetNextHeader(pce->obex, obj, &hi, &hd, &hlen)) {
 		switch(hi) {
 		case OBEX_HDR_BODY:
 			pce_rsp->rsp_id = 0x02;
@@ -213,7 +213,7 @@ static void get_done(pce_t *self, obex_object_t *obj, pce_rsp_t *pce_rsp)
 	}
 }
 
-static obex_object_t *obex_obj_init(pce_t *self, const char *name,
+static obex_object_t *obex_obj_init(pce_t *pce, const char *name,
 				const char *type)
 {
 	obex_object_t *obj;
@@ -221,42 +221,42 @@ static obex_object_t *obex_obj_init(pce_t *self, const char *name,
 	uint8_t uname[200];
 	int uname_len;
 
-	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_GET);
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_GET);
 	if (!obj)
 		return NULL;
 
-	hd.bq4 = self->connection_id;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_CONNECTION, hd,
+	hd.bq4 = pce->connection_id;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
 	uname_len = OBEX_CharToUnicode(uname, (uint8_t *) name,
 					sizeof(uname));
 	hd.bs = uname;
 
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_NAME,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
 			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	hd.bs = (uint8_t *) type;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_TYPE,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TYPE,
 			hd, strlen(type), OBEX_FL_FIT_ONE_PACKET);
 
 	return obj;
 }
 
-static void pce_req_done(pce_t *self, obex_object_t *obj, int cmd,
+static void pce_req_done(pce_t *pce, obex_object_t *obj, int cmd,
 				pce_rsp_t *pce_rsp)
 {
 	switch(cmd) {
 	case OBEX_CMD_CONNECT:
-		connect_done(self, obj);
+		connect_done(pce, obj);
 		break;
 	case OBEX_CMD_DISCONNECT:
 		debug("Disconnected!");
-		OBEX_TransportDisconnect(self->obex);
-		self->connection_id = 0;
+		OBEX_TransportDisconnect(pce->obex);
+		pce->connection_id = 0;
 		break;
 	case OBEX_CMD_GET:
-		get_done(self, obj, pce_rsp);
+		get_done(pce, obj, pce_rsp);
 		break;
 	case OBEX_CMD_SETPATH:
 		break;
@@ -275,10 +275,10 @@ static void rsp_cleanup(pce_rsp_t *pce_rsp)
 static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 			int evt, int cmd, int rsp)
 {
-	pce_t *self;
+	pce_t *pce;
 	pce_rsp_t *pce_rsp;
 
-	self = OBEX_GetUserData(obex);
+	pce = OBEX_GetUserData(obex);
 	debug("event(0x%02x)/command(0x%02x)", evt, cmd);
 
 	switch(evt) {
@@ -295,8 +295,8 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 			pce_rsp->obex_rsp = rsp;
 		}
 		if (rsp == OBEX_RSP_SUCCESS)
-			pce_req_done(self, obj, cmd, pce_rsp);
-		self->event_cb(self, pce_rsp, self->userdata);
+			pce_req_done(pce, obj, cmd, pce_rsp);
+		pce->event_cb(pce, pce_rsp, pce->userdata);
 		rsp_cleanup(pce_rsp);
 		break;
 	default:
@@ -304,21 +304,21 @@ static void obex_pce_event(obex_t *obex, obex_object_t *obj, int mode,
 	}
 }
 
-static int request(pce_t *self, obex_object_t *obj, void *userdata)
+static int request(pce_t *pce, obex_object_t *obj, void *userdata)
 {
-	self->userdata = userdata;
+	pce->userdata = userdata;
 
-	OBEX_SetUserData(self->obex, self);
+	OBEX_SetUserData(pce->obex, pce);
 
-	OBEX_Request(self->obex, obj);
+	OBEX_Request(pce->obex, obj);
 
 	return 0;
 }
 
-int PCE_HandleInput(pce_t *self, int timeout)
+int PCE_HandleInput(pce_t *pce, int timeout)
 {
-	if (self)
-		return OBEX_HandleInput(self->obex, timeout);
+	if (pce)
+		return OBEX_HandleInput(pce->obex, timeout);
 	return -1;
 }
 
@@ -351,14 +351,14 @@ void PCE_Query_Free(pce_query_t *query)
 	}
 }
 
-pce_t *PCE_Init(const char *bdaddr, uint8_t channel, pce_cb_t event_cb)
+pce_t *PCE_Init(const char *dst, uint8_t channel, pce_cb_t event_cb)
 {
-	obex_t *obex = NULL;
-	pce_t *self;
-	bdaddr_t bd;
+	obex_t *obex;
+	pce_t *pce;
+	bdaddr_t bda;
 
-	str2ba(bdaddr, &bd);
-	if (bacmp(&bd, BDADDR_ANY) == 0) {
+	str2ba(dst, &bda);
+	if (bacmp(&bda, BDADDR_ANY) == 0) {
 		debug("ERROR Device bt address error!");
 		return NULL;
 	}
@@ -369,70 +369,70 @@ pce_t *PCE_Init(const char *bdaddr, uint8_t channel, pce_cb_t event_cb)
 		return NULL;
 	}
 
-	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, &bd, channel) < 0) {
+	if (BtOBEX_TransportConnect(obex, BDADDR_ANY, &bda, channel) < 0) {
 		debug("Transport connect error!");
 		OBEX_Cleanup(obex);
 		return NULL;
 	}
 
-	self = malloc(sizeof(pce_t));
-	if (self == NULL)
+	pce = malloc(sizeof(pce_t));
+	if (pce == NULL)
 		return NULL;
 
-	memset(self, 0, sizeof(pce_t));
-	self->obex = obex;
-	self->event_cb = event_cb;
+	memset(pce, 0, sizeof(pce_t));
+	pce->obex = obex;
+	pce->event_cb = event_cb;
 
-	return self;
+	return pce;
 }
 
-int PCE_Get_FD(pce_t *self)
+int PCE_Get_FD(pce_t *pce)
 {
-	if (self)
-		return OBEX_GetFD(self->obex);
+	if (pce)
+		return OBEX_GetFD(pce->obex);
 	return -1;
 }
 
-void PCE_Cleanup(pce_t *self)
+void PCE_Cleanup(pce_t *pce)
 {
-	if (self) {
-		OBEX_Cleanup(self->obex);
-		free(self);
+	if (pce) {
+		OBEX_Cleanup(pce->obex);
+		free(pce);
 	}
 }
 
-int PCE_Disconnect(pce_t *self, void * data)
+int PCE_Disconnect(pce_t *pce, void *data)
 {
 	debug("Disconnected!");
-	OBEX_TransportDisconnect(self->obex);
-	self->connection_id = 0;
+	OBEX_TransportDisconnect(pce->obex);
+	pce->connection_id = 0;
 	//TODO: call done
 	return 0;
 }
 
-int PCE_Connect(pce_t *self, void * data)
+int PCE_Connect(pce_t *pce, void *data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 
-	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_CONNECT);
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_CONNECT);
 	if (!obj) {
 		debug("Error creating object");
 		return -1;
 	}
 
 	hd.bs = PBAP_PCE_UUID;
-	if (OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_TARGET, hd,
+	if (OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_TARGET, hd,
 			sizeof(PBAP_PCE_UUID), OBEX_FL_FIT_ONE_PACKET) < 0) {
 		debug("Error adding header");
-		OBEX_ObjectDelete(self->obex, obj);
+		OBEX_ObjectDelete(pce->obex, obj);
 		return -1;
 	}
 
-	return request(self, obj, data);
+	return request(pce, obj, data);
 }
 
-int PCE_Set_PB(pce_t *self, char *name, void * data)
+int PCE_Set_PB(pce_t *pce, const char *name, void *data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
@@ -440,15 +440,15 @@ int PCE_Set_PB(pce_t *self, char *name, void * data)
 	uint8_t nohdr_data[2] = { 0x02, 0x00};
 	int uname_len = 0;
 
-	obj = OBEX_ObjectNew(self->obex, OBEX_CMD_SETPATH);
+	obj = OBEX_ObjectNew(pce->obex, OBEX_CMD_SETPATH);
 	if (!obj) {
 		debug("Error Creating Object (Set Phonebook)");
 		return -1;
 	}
 
 	memset(&hd, 0, sizeof(hd));
-	hd.bq4 = self->connection_id;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_CONNECTION, hd,
+	hd.bq4 = pce->connection_id;
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_CONNECTION, hd,
 			sizeof(hd), OBEX_FL_FIT_ONE_PACKET);
 
 	/* FIXME: correct check bad string */
@@ -461,26 +461,26 @@ int PCE_Set_PB(pce_t *self, char *name, void * data)
 		hd.bs = uname;
 	}
 
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_NAME,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_NAME,
 			hd, uname_len, OBEX_FL_FIT_ONE_PACKET);
 
 	OBEX_ObjectSetNonHdrData(obj, nohdr_data, 2);
 
-	return request(self, obj, data);
+	return request(pce, obj, data);
 }
 
-int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data)
+int PCE_Pull_PB(pce_t *pce, pce_query_t *query, void *data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t app[21];
 
-	if (!self || !self->obex || !self->connection_id) {
+	if (!pce || !pce->obex || !pce->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(self, query->name, XOBEX_BT_PHONEBOOK);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_PHONEBOOK);
 	if (!obj) {
 		debug("Error Creating Object (Pull PhoneBook)");
 		return -1;
@@ -501,24 +501,24 @@ int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data)
 	bt_put_unaligned(htons(query->offset), (uint16_t *) &app[19]);
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM, hd,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd,
 						sizeof(app), 0);
-	return request(self, obj, data);
+	return request(pce, obj, data);
 }
 
-int PCE_VCard_List(pce_t *self, pce_query_t *query, void * data)
+int PCE_VCard_List(pce_t *pce, pce_query_t *query, void *data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t *app;
 	int search_len, app_len;
 
-	if (!self || !self->obex || !self->connection_id) {
+	if (!pce || !pce->obex || !pce->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(self, query->name, XOBEX_BT_VCARDLIST);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARDLIST);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard List)");
 		return -1;
@@ -555,26 +555,26 @@ int PCE_VCard_List(pce_t *self, pce_query_t *query, void * data)
 	}
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM, hd,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM, hd,
 					app_len, 0);
 
 	free(app);
 
-	return request(self, obj, data);
+	return request(pce, obj, data);
 }
 
-int PCE_VCard_Entry(pce_t *self, pce_query_t *query, void * data)
+int PCE_VCard_Entry(pce_t *pce, pce_query_t *query, void *data)
 {
 	obex_object_t *obj;
 	obex_headerdata_t hd;
 	uint8_t app[13];
 
-	if (!self || !self->obex || !self->connection_id) {
+	if (!pce || !pce->obex || !pce->connection_id) {
 		debug("Not connected");
 		return -1;
 	}
 
-	obj = obex_obj_init(self, query->name, XOBEX_BT_VCARD);
+	obj = obex_obj_init(pce, query->name, XOBEX_BT_VCARD);
 	if (!obj) {
 		debug("Error Creating Object (Pull VCard Entry)");
 		return -1;
@@ -589,8 +589,8 @@ int PCE_VCard_Entry(pce_t *self, pce_query_t *query, void * data)
 	app[12] = query->format;
 
 	hd.bs = app;
-	OBEX_ObjectAddHeader(self->obex, obj, OBEX_HDR_APPARAM,
+	OBEX_ObjectAddHeader(pce->obex, obj, OBEX_HDR_APPARAM,
 						hd, sizeof(app), 0);
 
-	return request(self, obj, data);
+	return request(pce, obj, data);
 }

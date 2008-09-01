@@ -54,7 +54,7 @@ typedef struct {
 	void		*rsp;
 } pce_rsp_t;
 
-typedef void (*pce_cb_t)(pce_t *self, pce_rsp_t *rsp, void * data);
+typedef void (*pce_cb_t)(pce_t *pce, pce_rsp_t *rsp, void * data);
 
 pce_query_t *PCE_Query_New(const char *name);
 
@@ -62,23 +62,23 @@ void PCE_Query_Free(pce_query_t *query);
 
 pce_t *PCE_Init(const char *bdaddr, uint8_t channel, pce_cb_t event_cb);
 
-int PCE_HandleInput(pce_t *self, int timeout);
+int PCE_HandleInput(pce_t *pce, int timeout);
 
-int PCE_Get_FD(pce_t *self);
+int PCE_Get_FD(pce_t *pce);
 
-void PCE_Cleanup(pce_t *self);
+void PCE_Cleanup(pce_t *pce);
 
-int PCE_Disconnect(pce_t *self, void * data);
+int PCE_Disconnect(pce_t *pce, void * data);
 
-int PCE_Connect(pce_t *self, void * data);
+int PCE_Connect(pce_t *pce, void * data);
 
-int PCE_Set_PB(pce_t *self, char *name, void * data);
+int PCE_Set_PB(pce_t *pce, char *name, void * data);
 
-int PCE_Pull_PB(pce_t *self, pce_query_t *query, void * data);
+int PCE_Pull_PB(pce_t *pce, pce_query_t *query, void * data);
 
-int PCE_VCard_List(pce_t *self, pce_query_t  *query,  void * data);
+int PCE_VCard_List(pce_t *pce, pce_query_t  *query,  void * data);
 
-int PCE_VCard_Entry(pce_t *self, pce_query_t  *query, void * data);
+int PCE_VCard_Entry(pce_t *pce, pce_query_t  *query, void * data);
 
 
 /* FILTER MASKS */
