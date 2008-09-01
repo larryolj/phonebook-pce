@@ -30,6 +30,7 @@
 #include <signal.h>
 
 #include "pce.h"
+#include "gtk.h"
 
 #define PBAP_PCE_CHANNEL	0x0B
 
@@ -40,8 +41,13 @@ static void client_input(pce_t *pce);
 static char *folder;
 
 typedef struct {
+	pce_t	*pce;
 	int	func_id;
-} session_t;
+	int	channel;
+	char	*bdaddr;
+}session_t;
+
+session_t *session;
 
 static void start_element_handler(GMarkupParseContext *context,
 		const gchar *element, const gchar **names,
@@ -57,6 +63,7 @@ static void start_element_handler(GMarkupParseContext *context,
 		printf("%s: %s ", names[i], values[i]);
 		i++;
 	}
+	add_list_item(values[0], values[1]);
 
 	printf("\n");
 }
@@ -64,7 +71,7 @@ static void start_element_handler(GMarkupParseContext *context,
 static void error_handler(GMarkupParseContext *context, GError *error,
 							gpointer user_data)
 {
-	fprintf (stderr, " %s\n", error->message);
+	printf (" %s\n", error->message);
 }
 
 static const GMarkupParser parser = {
@@ -334,6 +341,7 @@ int main(int argc, char *argv[])
 	struct sigaction sa;
 	GIOChannel *io;
 	pce_t *pce;
+	struct sigaction sa;
 	int fd;
 	uint8_t channel;
 
@@ -362,26 +370,35 @@ int main(int argc, char *argv[])
 	pce = PCE_Init(argv[1], channel, event_done);
 	if (!pce) {
 		printf("Can't initialize PCE!\n");
+	printf("Obex DEBUG: \n");
+
+	session = g_new0(session_t, 1);
+
+	session->pce = PCE_Init(argv[1], channel, event_done);
+	if (session->pce) {
+		printf("Dont initialize PCE\n");
 		exit(EXIT_FAILURE);
 	}
 
 	main_loop = g_main_loop_new(NULL, FALSE);
 
-	fd = PCE_Get_FD(pce);
+	fd = PCE_Get_FD(session->pce);
 	io = g_io_channel_unix_new(fd);
 	g_io_add_watch_full(io, G_PRIORITY_DEFAULT,
 			G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
-			watch_cb, pce,
+			watch_cb, session->pce,
 			(GDestroyNotify) PCE_Cleanup);
 	g_io_channel_unref(io);
 
-	PCE_Connect(pce, NULL);
+	PCE_Connect(session->pce, NULL);
 
 	folder = g_strdup("");
 
-	g_main_loop_run(main_loop);
+	init(argc, argv);
 
-	g_main_loop_unref(main_loop);
+	//g_main_loop_run(main_loop);
+
+	//g_main_loop_unref(main_loop);
 
 	printf("Exit\n");
 

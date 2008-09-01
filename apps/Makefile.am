@@ -1,6 +1,6 @@
 bin_PROGRAMS = obexpb
 
-obexpb_SOURCES = obexpb.c
+obexpb_SOURCES = gtk.c obexpb.c
 
 obexpb_LDADD = $(top_builddir)/lib/libpce.la @GLIB_LIBS@ @OPENOBEX_LIBS@ @BLUEZ_LIBS@ @GTK_LIBS@
 
